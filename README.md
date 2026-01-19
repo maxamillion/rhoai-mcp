@@ -34,6 +34,72 @@ pip install -e .
 rhoai-mcp
 ```
 
+### Using Container (Docker/Podman)
+
+```bash
+# Build the image
+make build
+
+# Run with HTTP transport
+make run-http
+
+# Run with STDIO transport (interactive)
+make run-stdio
+
+# Run with debug logging
+make run-dev
+```
+
+Or run directly without Make:
+
+```bash
+# Build
+podman build -t rhoai-mcp:latest .
+
+# Run with HTTP transport
+podman run -p 8000:8000 \
+  -v ~/.kube/config:/app/kubeconfig/config:ro \
+  -e RHOAI_MCP_AUTH_MODE=kubeconfig \
+  -e RHOAI_MCP_KUBECONFIG_PATH=/app/kubeconfig/config \
+  rhoai-mcp:latest --transport sse
+
+# Run with STDIO transport
+podman run -it \
+  -v ~/.kube/config:/app/kubeconfig/config:ro \
+  -e RHOAI_MCP_AUTH_MODE=kubeconfig \
+  -e RHOAI_MCP_KUBECONFIG_PATH=/app/kubeconfig/config \
+  rhoai-mcp:latest --transport stdio
+```
+
+Available Make targets:
+
+| Target | Description |
+|--------|-------------|
+| `make build` | Build the container image |
+| `make run-http` | Run with SSE transport on port 8000 |
+| `make run-streamable` | Run with streamable-http transport |
+| `make run-stdio` | Run with STDIO transport (interactive) |
+| `make run-dev` | Run with debug logging |
+| `make run-token` | Run with token auth (requires TOKEN and API_SERVER) |
+| `make stop` | Stop the running container |
+| `make logs` | View container logs |
+| `make clean` | Remove container and image |
+
+### Kubernetes Deployment
+
+For in-cluster deployment, apply the Kubernetes manifests:
+
+```bash
+kubectl apply -f deploy/kubernetes/deployment.yaml
+```
+
+This creates:
+- Namespace `rhoai-mcp`
+- ServiceAccount with RBAC for RHOAI resources
+- Deployment running the MCP server with SSE transport
+- Service exposing port 8000
+- Route (OpenShift only) with TLS termination
+
 ## Configuration
 
 The server can be configured via environment variables (with `RHOAI_MCP_` prefix) or a `.env` file.
