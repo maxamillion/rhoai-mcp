@@ -1,5 +1,10 @@
 # RHOAI MCP Server
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/admiller/rhoai-mcp-prototype)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/admiller/rhoai-mcp-prototype)
+[![Python](https://img.shields.io/badge/python-3.10%2B-green.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+
 An MCP (Model Context Protocol) server that enables AI agents to interact with Red Hat OpenShift AI (RHOAI) environments. This server replicates the capabilities of the OpenShift AI Dashboard through programmatic tools.
 
 ## Features
@@ -10,6 +15,18 @@ An MCP (Model Context Protocol) server that enables AI agents to interact with R
 - **Data Connections**: Manage S3 credentials for data access
 - **Pipelines**: Configure Data Science Pipelines infrastructure
 - **Storage**: Create and manage persistent volume claims
+
+## Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Runtime** | Python 3.10+ | Core language |
+| **MCP Framework** | FastMCP 1.0+ | Model Context Protocol server |
+| **Kubernetes Client** | kubernetes-python 28.1+ | Cluster API interactions |
+| **Data Validation** | Pydantic 2.0+ | Type-safe models and settings |
+| **HTTP Client** | httpx 0.27+ | Async HTTP requests |
+| **Container Base** | Red Hat UBI 9 | Production container image |
+| **Package Manager** | uv | Fast Python dependency management |
 
 ## Installation
 
@@ -148,6 +165,17 @@ export RHOAI_MCP_ENABLE_DANGEROUS_OPERATIONS=true
 # Read-only mode (disable all write operations)
 export RHOAI_MCP_READ_ONLY_MODE=true
 ```
+
+### Safety Features Summary
+
+| Feature | Description | Default |
+|---------|-------------|---------|
+| **Read-Only Mode** | Disables all create/update/delete operations | Off |
+| **Dangerous Operations Gate** | Delete operations require explicit enablement | Disabled |
+| **Confirmation Pattern** | Delete tools require `confirm=True` parameter | Required |
+| **Credential Masking** | S3 secret keys are masked in all responses | Always |
+| **RBAC-Aware** | Uses OpenShift Projects API to respect user permissions | Always |
+| **Auth Validation** | Validates authentication configuration at startup | Always |
 
 ## Usage with Claude Desktop
 
@@ -330,13 +358,54 @@ uv run mypy src/rhoai_mcp
 
 ## Architecture
 
-The server is organized into:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                MCP Transport Layer (stdio/SSE/HTTP)             │
+├─────────────────────────────────────────────────────────────────┤
+│  FastMCP Server (server.py)                                     │
+│  - Tool registration     - Resource registration                │
+│  - Lifecycle management  - Request routing                      │
+├────────────────────────────────┬────────────────────────────────┤
+│  Tools Layer (tools/)          │  Resources Layer (resources/)  │
+│  - projects.py (6 tools)       │  - cluster.py                  │
+│  - notebooks.py (8 tools)      │  - projects.py                 │
+│  - inference.py (6 tools)      │                                │
+│  - connections.py (4 tools)    │                                │
+│  - storage.py (3 tools)        │                                │
+│  - pipelines.py (3 tools)      │                                │
+├────────────────────────────────┴────────────────────────────────┤
+│  Clients Layer (clients/) - Business Logic                      │
+│  - base.py (K8sClient)   - projects.py    - notebooks.py        │
+│  - inference.py          - connections.py - storage.py          │
+│  - pipelines.py                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  Models Layer (models/) - Pydantic Data Structures              │
+│  - common.py (shared)    - Domain-specific models per resource  │
+├─────────────────────────────────────────────────────────────────┤
+│  Infrastructure Layer                                           │
+│  - K8sClient: Kubernetes API abstraction (Core + CRDs)          │
+│  - Configuration: Environment-based settings                    │
+│  - Utilities: errors.py, annotations.py, labels.py              │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-- **clients/**: Kubernetes client abstractions for each resource type
-- **models/**: Pydantic models for type-safe resource handling
-- **tools/**: MCP tool definitions that wrap client operations
-- **resources/**: MCP resource definitions for read-only data access
-- **utils/**: Helper functions for annotations, labels, and errors
+### Directory Structure
+
+| Directory | Purpose |
+|-----------|---------|
+| **clients/** | Kubernetes client abstractions for each resource type |
+| **models/** | Pydantic models for type-safe resource handling |
+| **tools/** | MCP tool definitions that wrap client operations |
+| **resources/** | MCP resource definitions for read-only data access |
+| **utils/** | Helper functions for annotations, labels, and errors |
+
+### Request Flow
+
+```
+AI Agent Request → MCP Transport → Tool Handler → Domain Client
+                                                       ↓
+AI Agent Response ← Pydantic Model ← K8s Response ← K8sClient → Kubernetes API
+```
 
 ### Key CRDs Supported
 
