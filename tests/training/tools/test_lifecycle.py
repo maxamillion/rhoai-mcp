@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rhoai_mcp_training.tools.lifecycle import register_tools
+from rhoai_mcp_core.domains.training.tools.lifecycle import register_tools
 
 
 class TestLifecycleTools:

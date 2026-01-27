@@ -59,6 +59,7 @@ def get_core_domains() -> list[DomainModule]:
     )
     from rhoai_mcp_core.domains.projects.tools import register_tools as projects_tools
     from rhoai_mcp_core.domains.storage.tools import register_tools as storage_tools
+    from rhoai_mcp_core.domains.training.tools import register_tools as training_tools
 
     return [
         DomainModule(
@@ -100,5 +101,11 @@ def get_core_domains() -> list[DomainModule]:
             required_crds=[],
             register_tools=storage_tools,
             health_check=lambda _: (True, "Storage uses core Kubernetes API"),
+        ),
+        DomainModule(
+            name="training",
+            description="Kubeflow Training Operator integration",
+            required_crds=["TrainJob", "ClusterTrainingRuntime"],
+            register_tools=training_tools,
         ),
     ]

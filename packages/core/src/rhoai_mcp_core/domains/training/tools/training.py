@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from rhoai_mcp_training.client import TrainingClient
-from rhoai_mcp_training.models import PeftMethod
+from rhoai_mcp_core.domains.training.client import TrainingClient
+from rhoai_mcp_core.domains.training.models import PeftMethod
 
 if TYPE_CHECKING:
     from rhoai_mcp_core.server import RHOAIServer
 
 
-def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
+def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register training tools with the MCP server."""
 
     @mcp.tool()
@@ -205,7 +205,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             }
 
         # Build the job spec for container training
-        from rhoai_mcp_training.crds import TrainingCRDs
+        from rhoai_mcp_core.domains.training.crds import TrainingCRDs
 
         spec: dict[str, Any] = {
             "trainer": {

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from rhoai_mcp_core.server import RHOAIServer
 
 
-def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
+def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register training storage tools with the MCP server."""
 
     @mcp.tool()

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from rhoai_mcp_training.client import TrainingClient
+from rhoai_mcp_core.domains.training.client import TrainingClient
 
 if TYPE_CHECKING:
     from rhoai_mcp_core.server import RHOAIServer
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 CHECKPOINT_ANNOTATION = "trainer.opendatahub.io/checkpoint"
 
 
-def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
+def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register training monitoring tools with the MCP server."""
 
     @mcp.tool()
@@ -176,18 +176,10 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         Returns:
             Checkpoint information including paths and steps.
         """
-        client = TrainingClient(server.k8s)
-
         # Get checkpoint info from annotation
-        resource = server.k8s.get(
-            client._k8s.get_resource(
-                __import__(
-                    "rhoai_mcp_training.crds", fromlist=["TrainingCRDs"]
-                ).TrainingCRDs.TRAIN_JOB
-            ),
-            job_name,
-            namespace=namespace,
-        )
+        from rhoai_mcp_core.domains.training.crds import TrainingCRDs
+
+        resource = server.k8s.get(TrainingCRDs.TRAIN_JOB, job_name, namespace=namespace)
 
         annotations = getattr(resource.metadata, "annotations", {}) or {}
         checkpoint_annotation = annotations.get(CHECKPOINT_ANNOTATION, "")

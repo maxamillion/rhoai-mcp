@@ -6,9 +6,8 @@
 # UV Workspace Configuration
 # =============================================================================
 [tool.uv]
-# Define workspace members - core package contains all domain modules,
-# training is an external plugin discovered via entry points
-workspace = { members = ["packages/core", "packages/training"] }
+# Define workspace members - core package contains all domain modules
+workspace = { members = ["packages/core"] }
 
 [dependency-groups]
 dev = [
@@ -22,7 +21,6 @@ dev = [
 [tool.uv.sources]
 # Use local packages during development
 rhoai-mcp-core = { workspace = true }
-rhoai-mcp-training = { workspace = true }
 
 # =============================================================================
 # Shared Tool Configuration
@@ -54,7 +52,6 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = [
     "rhoai_mcp_core",
-    "rhoai_mcp_training",
 ]
 
 [tool.mypy]
@@ -66,7 +63,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["packages/*/tests", "tests/integration"]
+testpaths = ["packages/*/tests", "tests/integration", "tests/training"]
 addopts = "-ra -q"
 
 [tool.coverage.run]

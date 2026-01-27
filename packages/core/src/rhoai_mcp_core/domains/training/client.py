@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from rhoai_mcp_training.crds import TrainingCRDs
-from rhoai_mcp_training.models import (
+from rhoai_mcp_core.domains.training.crds import TrainingCRDs
+from rhoai_mcp_core.domains.training.models import (
     ClusterResources,
     GPUInfo,
     NodeResources,
     PeftMethod,
-    TrainJob,
     TrainingRuntime,
+    TrainJob,
 )
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class TrainingClient:
     """Client for Kubeflow Training Operator operations."""
 
-    def __init__(self, k8s: "K8sClient") -> None:
+    def __init__(self, k8s: K8sClient) -> None:
         """Initialize with a K8sClient instance."""
         self._k8s = k8s
 

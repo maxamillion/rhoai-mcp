@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from rhoai_mcp_training.models import (
+from rhoai_mcp_core.domains.training.models import (
     ClusterResources,
     GPUInfo,
     NodeResources,

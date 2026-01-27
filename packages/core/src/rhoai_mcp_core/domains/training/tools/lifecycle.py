@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from rhoai_mcp_training.client import TrainingClient
-from rhoai_mcp_training.models import TrainJobStatus
+from rhoai_mcp_core.domains.training.client import TrainingClient
+from rhoai_mcp_core.domains.training.models import TrainJobStatus
 
 if TYPE_CHECKING:
     from rhoai_mcp_core.server import RHOAIServer
 
 
-def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
+def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register training lifecycle tools with the MCP server."""
 
     @mcp.tool()
@@ -201,7 +201,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         Returns:
             Complete job specification.
         """
-        from rhoai_mcp_training.crds import TrainingCRDs
+        from rhoai_mcp_core.domains.training.crds import TrainingCRDs
 
         resource = server.k8s.get(TrainingCRDs.TRAIN_JOB, name, namespace=namespace)
 

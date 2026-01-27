@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rhoai_mcp_training.client import TrainingClient
-from rhoai_mcp_training.crds import TrainingCRDs
-from rhoai_mcp_training.models import (
+from rhoai_mcp_core.domains.training.client import TrainingClient
+from rhoai_mcp_core.domains.training.crds import TrainingCRDs
+from rhoai_mcp_core.domains.training.models import (
     TrainingState,
 )
 

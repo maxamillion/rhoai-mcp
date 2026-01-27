@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
 
-from rhoai_mcp_training.client import TrainingClient
+from rhoai_mcp_core.domains.training.client import TrainingClient
 
 if TYPE_CHECKING:
     from rhoai_mcp_core.server import RHOAIServer
