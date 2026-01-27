@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 from kubernetes import client, config
 from kubernetes.client import ApiException
@@ -464,9 +465,7 @@ class K8sClient:
             data=None if string_data else data,
         )
         try:
-            return self.core_v1.create_namespaced_secret(
-                namespace=namespace, body=body
-            )
+            return self.core_v1.create_namespaced_secret(namespace=namespace, body=body)
         except ApiException as e:
             if e.status == 409:
                 from rhoai_mcp_core.utils.errors import ResourceExistsError
@@ -530,9 +529,7 @@ class K8sClient:
             ),
             spec=client.V1PersistentVolumeClaimSpec(
                 access_modes=access_modes or ["ReadWriteOnce"],
-                resources=client.V1VolumeResourceRequirements(
-                    requests={"storage": size}
-                ),
+                resources=client.V1VolumeResourceRequirements(requests={"storage": size}),
                 storage_class_name=storage_class,
             ),
         )
@@ -550,9 +547,7 @@ class K8sClient:
     def delete_pvc(self, name: str, namespace: str) -> None:
         """Delete a PersistentVolumeClaim."""
         try:
-            self.core_v1.delete_namespaced_persistent_volume_claim(
-                name=name, namespace=namespace
-            )
+            self.core_v1.delete_namespaced_persistent_volume_claim(name=name, namespace=namespace)
         except ApiException as e:
             if e.status == 404:
                 raise NotFoundError("PersistentVolumeClaim", name, namespace)

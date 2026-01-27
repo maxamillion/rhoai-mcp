@@ -19,18 +19,20 @@ def sample_train_job() -> MagicMock:
         "training.kubeflow.org/job-name": "llama-finetune-abc123",
     }
     mock.metadata.annotations = {
-        "trainer.opendatahub.io/trainerStatus": json.dumps({
-            "trainingState": "Training",
-            "currentEpoch": 3,
-            "totalEpochs": 10,
-            "currentStep": 1500,
-            "totalSteps": 5000,
-            "loss": 2.34,
-            "learningRate": 0.0001,
-            "throughput": 450.5,
-            "gradientNorm": 2.1,
-            "estimatedTimeRemaining": 3600,
-        }),
+        "trainer.opendatahub.io/trainerStatus": json.dumps(
+            {
+                "trainingState": "Training",
+                "currentEpoch": 3,
+                "totalEpochs": 10,
+                "currentStep": 1500,
+                "totalSteps": 5000,
+                "loss": 2.34,
+                "learningRate": 0.0001,
+                "throughput": 450.5,
+                "gradientNorm": 2.1,
+                "estimatedTimeRemaining": 3600,
+            }
+        ),
     }
     mock.spec = {
         "modelConfig": {
@@ -140,6 +142,7 @@ def mock_mcp() -> MagicMock:
         def decorator(f):
             registered_tools[f.__name__] = f
             return f
+
         return decorator
 
     mock.tool = capture_tool

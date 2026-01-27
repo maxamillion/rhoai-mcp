@@ -1,7 +1,7 @@
 [project]
 name = "rhoai-mcp-core"
 version = "0.1.0"
-description = "Core infrastructure for RHOAI MCP server - shared plugin system, K8s client, and utilities"
+description = "RHOAI MCP server - includes plugin system, K8s client, domain modules (projects, notebooks, inference, pipelines, connections, storage), and utilities"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [

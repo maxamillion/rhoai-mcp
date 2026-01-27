@@ -27,13 +27,9 @@ class ResourceMetadata(BaseModel):
     name: str = Field(..., description="Resource name")
     namespace: str | None = Field(None, description="Resource namespace")
     uid: str | None = Field(None, description="Kubernetes UID")
-    creation_timestamp: datetime | None = Field(
-        None, description="When the resource was created"
-    )
+    creation_timestamp: datetime | None = Field(None, description="When the resource was created")
     labels: dict[str, str] = Field(default_factory=dict, description="Resource labels")
-    annotations: dict[str, str] = Field(
-        default_factory=dict, description="Resource annotations"
-    )
+    annotations: dict[str, str] = Field(default_factory=dict, description="Resource annotations")
 
     @classmethod
     def from_k8s_metadata(cls, metadata: Any) -> "ResourceMetadata":
@@ -87,9 +83,7 @@ class Condition(BaseModel):
     status: str = Field(..., description="Condition status (True, False, Unknown)")
     reason: str | None = Field(None, description="Machine-readable reason")
     message: str | None = Field(None, description="Human-readable message")
-    last_transition_time: datetime | None = Field(
-        None, description="Last transition time"
-    )
+    last_transition_time: datetime | None = Field(None, description="Last transition time")
 
     @property
     def is_true(self) -> bool:
@@ -125,9 +119,7 @@ class ContainerResources(BaseModel):
 
     cpu_request: str | None = Field(None, description="CPU request (e.g., '500m')")
     cpu_limit: str | None = Field(None, description="CPU limit (e.g., '2')")
-    memory_request: str | None = Field(
-        None, description="Memory request (e.g., '1Gi')"
-    )
+    memory_request: str | None = Field(None, description="Memory request (e.g., '1Gi')")
     memory_limit: str | None = Field(None, description="Memory limit (e.g., '4Gi')")
     gpu_request: int | None = Field(None, description="Number of GPUs requested")
     gpu_limit: int | None = Field(None, description="Number of GPUs limit")

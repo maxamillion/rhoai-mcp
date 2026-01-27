@@ -138,11 +138,8 @@ class RHOAIConfig(BaseSettings):
             if not self.api_token:
                 raise ValueError("api_token is required when auth_mode is 'token'")
 
-        if self.auth_mode == AuthMode.KUBECONFIG:
-            if not self.effective_kubeconfig_path.exists():
-                raise ValueError(
-                    f"Kubeconfig file not found: {self.effective_kubeconfig_path}"
-                )
+        if self.auth_mode == AuthMode.KUBECONFIG and not self.effective_kubeconfig_path.exists():
+            raise ValueError(f"Kubeconfig file not found: {self.effective_kubeconfig_path}")
 
         if self.auth_mode == AuthMode.AUTO:
             # Check if running in-cluster
@@ -162,13 +159,11 @@ class RHOAIConfig(BaseSettings):
         Returns:
             Tuple of (allowed, reason_if_not_allowed)
         """
-        if self.read_only_mode:
-            if operation in ("create", "update", "delete", "patch"):
-                return False, "Read-only mode is enabled"
+        if self.read_only_mode and operation in ("create", "update", "delete", "patch"):
+            return False, "Read-only mode is enabled"
 
-        if not self.enable_dangerous_operations:
-            if operation == "delete":
-                return False, "Dangerous operations are disabled"
+        if not self.enable_dangerous_operations and operation == "delete":
+            return False, "Dangerous operations are disabled"
 
         return True, None
 

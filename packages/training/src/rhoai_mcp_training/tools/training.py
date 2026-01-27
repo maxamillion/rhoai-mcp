@@ -229,9 +229,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         if args:
             spec["trainer"]["args"] = args
         if env_vars:
-            spec["trainer"]["env"] = [
-                {"name": k, "value": v} for k, v in env_vars.items()
-            ]
+            spec["trainer"]["env"] = [{"name": k, "value": v} for k, v in env_vars.items()]
 
         body = {
             "apiVersion": TrainingCRDs.TRAIN_JOB.api_version,

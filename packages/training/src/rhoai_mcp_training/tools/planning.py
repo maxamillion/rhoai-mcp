@@ -85,7 +85,9 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
         # Calculate memory components
         model_memory = base_memory
-        optimizer_memory = base_memory * 0.5 if peft_method == PeftMethod.FULL else base_memory * 0.1
+        optimizer_memory = (
+            base_memory * 0.5 if peft_method == PeftMethod.FULL else base_memory * 0.1
+        )
         activation_memory = (batch_size * sequence_length * param_count * 2) / (1024 * 1024 * 1024)
         activation_memory = min(activation_memory, base_memory * 0.5)  # Cap activation estimate
 
@@ -167,34 +169,42 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         # Check 1: Cluster connectivity
         try:
             resources = client.get_cluster_resources()
-            checks.append({
-                "name": "Cluster connectivity",
-                "passed": True,
-                "message": f"Connected to cluster with {resources.node_count} nodes",
-            })
+            checks.append(
+                {
+                    "name": "Cluster connectivity",
+                    "passed": True,
+                    "message": f"Connected to cluster with {resources.node_count} nodes",
+                }
+            )
         except Exception as e:
-            checks.append({
-                "name": "Cluster connectivity",
-                "passed": False,
-                "message": f"Failed to connect: {e}",
-            })
+            checks.append(
+                {
+                    "name": "Cluster connectivity",
+                    "passed": False,
+                    "message": f"Failed to connect: {e}",
+                }
+            )
             all_passed = False
             actions_needed.append("Check Kubernetes configuration and credentials")
 
         # Check 2: GPU availability
         if resources:
             if resources.has_gpus and resources.gpu_info:
-                checks.append({
-                    "name": "GPU availability",
-                    "passed": True,
-                    "message": f"{resources.gpu_info.total} GPUs available ({resources.gpu_info.type})",
-                })
+                checks.append(
+                    {
+                        "name": "GPU availability",
+                        "passed": True,
+                        "message": f"{resources.gpu_info.total} GPUs available ({resources.gpu_info.type})",
+                    }
+                )
             else:
-                checks.append({
-                    "name": "GPU availability",
-                    "passed": False,
-                    "message": "No GPUs detected in cluster",
-                })
+                checks.append(
+                    {
+                        "name": "GPU availability",
+                        "passed": False,
+                        "message": "No GPUs detected in cluster",
+                    }
+                )
                 all_passed = False
                 actions_needed.append("Ensure GPU nodes are available and properly labeled")
 
@@ -202,25 +212,31 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         try:
             runtimes = client.list_cluster_training_runtimes()
             if runtimes:
-                checks.append({
-                    "name": "Training runtimes",
-                    "passed": True,
-                    "message": f"{len(runtimes)} training runtimes available",
-                })
+                checks.append(
+                    {
+                        "name": "Training runtimes",
+                        "passed": True,
+                        "message": f"{len(runtimes)} training runtimes available",
+                    }
+                )
             else:
-                checks.append({
-                    "name": "Training runtimes",
-                    "passed": False,
-                    "message": "No training runtimes configured",
-                })
+                checks.append(
+                    {
+                        "name": "Training runtimes",
+                        "passed": False,
+                        "message": "No training runtimes configured",
+                    }
+                )
                 all_passed = False
                 actions_needed.append("Use setup_training_runtime() to create a runtime")
         except Exception:
-            checks.append({
-                "name": "Training runtimes",
-                "passed": False,
-                "message": "Failed to list training runtimes",
-            })
+            checks.append(
+                {
+                    "name": "Training runtimes",
+                    "passed": False,
+                    "message": "Failed to list training runtimes",
+                }
+            )
             all_passed = False
 
         # Check 4: Checkpoint storage (if specified)
@@ -229,54 +245,70 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                 pvc = server.k8s.get_pvc(checkpoint_storage, namespace)
                 phase = pvc.status.phase if pvc.status else "Unknown"
                 if phase == "Bound":
-                    checks.append({
-                        "name": "Checkpoint storage",
-                        "passed": True,
-                        "message": f"PVC '{checkpoint_storage}' is bound",
-                    })
+                    checks.append(
+                        {
+                            "name": "Checkpoint storage",
+                            "passed": True,
+                            "message": f"PVC '{checkpoint_storage}' is bound",
+                        }
+                    )
                 else:
-                    checks.append({
-                        "name": "Checkpoint storage",
-                        "passed": False,
-                        "message": f"PVC '{checkpoint_storage}' is in state: {phase}",
-                    })
+                    checks.append(
+                        {
+                            "name": "Checkpoint storage",
+                            "passed": False,
+                            "message": f"PVC '{checkpoint_storage}' is in state: {phase}",
+                        }
+                    )
                     all_passed = False
             except Exception:
-                checks.append({
-                    "name": "Checkpoint storage",
-                    "passed": False,
-                    "message": f"PVC '{checkpoint_storage}' not found",
-                })
+                checks.append(
+                    {
+                        "name": "Checkpoint storage",
+                        "passed": False,
+                        "message": f"PVC '{checkpoint_storage}' not found",
+                    }
+                )
                 all_passed = False
-                actions_needed.append(f"Create PVC '{checkpoint_storage}' or use setup_training_storage()")
+                actions_needed.append(
+                    f"Create PVC '{checkpoint_storage}' or use setup_training_storage()"
+                )
 
         # Check 5: Model/Dataset ID format validation
         if "/" in model_id:
-            checks.append({
-                "name": "Model ID format",
-                "passed": True,
-                "message": f"Model ID '{model_id}' appears valid",
-            })
+            checks.append(
+                {
+                    "name": "Model ID format",
+                    "passed": True,
+                    "message": f"Model ID '{model_id}' appears valid",
+                }
+            )
         else:
-            checks.append({
-                "name": "Model ID format",
-                "passed": False,
-                "message": "Model ID should be in format 'organization/model-name'",
-            })
+            checks.append(
+                {
+                    "name": "Model ID format",
+                    "passed": False,
+                    "message": "Model ID should be in format 'organization/model-name'",
+                }
+            )
             all_passed = False
 
         if "/" in dataset_id:
-            checks.append({
-                "name": "Dataset ID format",
-                "passed": True,
-                "message": f"Dataset ID '{dataset_id}' appears valid",
-            })
+            checks.append(
+                {
+                    "name": "Dataset ID format",
+                    "passed": True,
+                    "message": f"Dataset ID '{dataset_id}' appears valid",
+                }
+            )
         else:
-            checks.append({
-                "name": "Dataset ID format",
-                "passed": False,
-                "message": "Dataset ID should be in format 'organization/dataset-name'",
-            })
+            checks.append(
+                {
+                    "name": "Dataset ID format",
+                    "passed": False,
+                    "message": "Dataset ID should be in format 'organization/dataset-name'",
+                }
+            )
             all_passed = False
 
         return {

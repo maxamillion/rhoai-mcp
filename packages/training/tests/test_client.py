@@ -2,16 +2,13 @@
 
 import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from rhoai_mcp_training.client import TrainingClient
 from rhoai_mcp_training.crds import TrainingCRDs
 from rhoai_mcp_training.models import (
-    TrainJob,
-    TrainJobStatus,
-    TrainingProgress,
     TrainingState,
 )
 
@@ -29,18 +26,14 @@ class TestTrainingClient:
         """Create a TrainingClient with mocked K8sClient."""
         return TrainingClient(mock_k8s)
 
-    def test_list_training_jobs_empty(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_list_training_jobs_empty(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test listing jobs when none exist."""
         mock_k8s.list.return_value = []
 
         jobs = client.list_training_jobs("default")
 
         assert jobs == []
-        mock_k8s.list.assert_called_once_with(
-            TrainingCRDs.TRAIN_JOB, namespace="default"
-        )
+        mock_k8s.list.assert_called_once_with(TrainingCRDs.TRAIN_JOB, namespace="default")
 
     def test_list_training_jobs_with_results(
         self, client: TrainingClient, mock_k8s: MagicMock
@@ -57,9 +50,7 @@ class TestTrainingClient:
         assert jobs[0].name == "job-1"
         assert jobs[1].name == "job-2"
 
-    def test_get_training_job(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_get_training_job(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test getting a specific training job."""
         mock_k8s.get.return_value = _make_mock_resource(
             "my-job",
@@ -74,9 +65,7 @@ class TestTrainingClient:
         assert job.name == "my-job"
         assert job.namespace == "training"
         assert job.model_id == "meta-llama/Llama-2-7b-hf"
-        mock_k8s.get.assert_called_once_with(
-            TrainingCRDs.TRAIN_JOB, "my-job", namespace="training"
-        )
+        mock_k8s.get.assert_called_once_with(TrainingCRDs.TRAIN_JOB, "my-job", namespace="training")
 
     def test_get_training_job_with_progress(
         self, client: TrainingClient, mock_k8s: MagicMock
@@ -86,14 +75,16 @@ class TestTrainingClient:
             "my-job",
             "training",
             annotations={
-                "trainer.opendatahub.io/trainerStatus": json.dumps({
-                    "trainingState": "Training",
-                    "currentEpoch": 5,
-                    "totalEpochs": 10,
-                    "currentStep": 2500,
-                    "totalSteps": 5000,
-                    "loss": 1.5,
-                }),
+                "trainer.opendatahub.io/trainerStatus": json.dumps(
+                    {
+                        "trainingState": "Training",
+                        "currentEpoch": 5,
+                        "totalEpochs": 10,
+                        "currentStep": 2500,
+                        "totalSteps": 5000,
+                        "loss": 1.5,
+                    }
+                ),
             },
         )
 
@@ -104,9 +95,7 @@ class TestTrainingClient:
         assert job.progress.current_epoch == 5
         assert job.progress.loss == pytest.approx(1.5)
 
-    def test_create_training_job(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_create_training_job(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test creating a training job."""
         mock_k8s.create.return_value = _make_mock_resource("new-job", "training")
 
@@ -126,9 +115,7 @@ class TestTrainingClient:
         assert body["metadata"]["name"] == "new-job"
         assert body["spec"]["modelConfig"]["name"] == "meta-llama/Llama-2-7b-hf"
 
-    def test_delete_training_job(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_delete_training_job(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test deleting a training job."""
         client.delete_training_job("training", "my-job")
 
@@ -136,9 +123,7 @@ class TestTrainingClient:
             TrainingCRDs.TRAIN_JOB, "my-job", namespace="training"
         )
 
-    def test_suspend_training_job(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_suspend_training_job(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test suspending a training job."""
         mock_k8s.patch.return_value = _make_mock_resource("my-job", "training")
 
@@ -151,9 +136,7 @@ class TestTrainingClient:
         body = call_args[1]["body"]
         assert body["spec"]["suspend"] is True
 
-    def test_resume_training_job(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_resume_training_job(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test resuming a training job."""
         mock_k8s.patch.return_value = _make_mock_resource("my-job", "training")
 
@@ -207,9 +190,7 @@ class TestTrainingClientPodOperations:
         """Create a TrainingClient with mocked K8sClient."""
         return TrainingClient(mock_k8s)
 
-    def test_get_training_logs(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_get_training_logs(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test getting training logs."""
         mock_k8s.core_v1.read_namespaced_pod_log.return_value = "Training started..."
 
@@ -225,9 +206,7 @@ class TestTrainingClientPodOperations:
 
         assert logs == "Training started..."
 
-    def test_get_job_events(
-        self, client: TrainingClient, mock_k8s: MagicMock
-    ) -> None:
+    def test_get_job_events(self, client: TrainingClient, mock_k8s: MagicMock) -> None:
         """Test getting job events."""
         mock_event = MagicMock()
         mock_event.type = "Normal"

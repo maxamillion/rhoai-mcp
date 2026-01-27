@@ -78,9 +78,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         }
 
     @mcp.tool()
-    def delete_training_job(
-        namespace: str, name: str, confirm: bool = False
-    ) -> dict[str, Any]:
+    def delete_training_job(namespace: str, name: str, confirm: bool = False) -> dict[str, Any]:
         """Delete a training job.
 
         Permanently removes the training job and associated resources.
@@ -215,7 +213,9 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             "uid": resource.metadata.uid,
             "creationTimestamp": str(resource.metadata.creation_timestamp),
             "labels": dict(resource.metadata.labels) if resource.metadata.labels else {},
-            "annotations": dict(resource.metadata.annotations) if resource.metadata.annotations else {},
+            "annotations": dict(resource.metadata.annotations)
+            if resource.metadata.annotations
+            else {},
         }
 
         return {

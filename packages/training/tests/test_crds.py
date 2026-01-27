@@ -1,7 +1,5 @@
 """Tests for training CRD definitions."""
 
-import pytest
-
 from rhoai_mcp_training.crds import TrainingCRDs
 
 

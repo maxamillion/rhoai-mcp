@@ -1,6 +1,5 @@
 """Tests for training discovery tools."""
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -37,9 +36,7 @@ class TestDiscoveryTools:
         # Check that tool decorator was called for each tool
         assert mock_mcp.tool.call_count >= 4  # At least 4 discovery tools
 
-    def test_list_training_jobs_empty(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_list_training_jobs_empty(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test listing training jobs when none exist."""
         # Setup mock to return empty list
         mock_server.k8s.list.return_value = []
@@ -51,6 +48,7 @@ class TestDiscoveryTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -76,6 +74,7 @@ class TestDiscoveryTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -87,9 +86,7 @@ class TestDiscoveryTools:
         assert len(result["jobs"]) == 2
         assert result["jobs"][0]["name"] == "job-1"
 
-    def test_get_training_job(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_get_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting a specific training job."""
         mock_server.k8s.get.return_value = _make_mock_resource(
             "my-job",
@@ -106,6 +103,7 @@ class TestDiscoveryTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -117,9 +115,7 @@ class TestDiscoveryTools:
         assert result["model_id"] == "meta-llama/Llama-2-7b-hf"
         assert result["dataset_id"] == "tatsu-lab/alpaca"
 
-    def test_get_cluster_resources(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_get_cluster_resources(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting cluster resources."""
         # Mock node list
         mock_node = MagicMock()
@@ -137,6 +133,7 @@ class TestDiscoveryTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -149,9 +146,7 @@ class TestDiscoveryTools:
         assert result["has_gpus"] is True
         assert result["gpu_info"]["total"] == 4
 
-    def test_list_training_runtimes(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_list_training_runtimes(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test listing training runtimes."""
         mock_server.k8s.list.return_value = [
             _make_mock_resource("transformers-runtime", None),
@@ -164,6 +159,7 @@ class TestDiscoveryTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool

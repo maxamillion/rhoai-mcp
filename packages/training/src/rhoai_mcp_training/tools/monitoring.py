@@ -133,9 +133,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
             if "OOMKilled" in reason or "OutOfMemory" in message:
                 issues.append("Out of memory - pod was killed due to memory limits")
-                suggestions.append(
-                    "Increase memory limits or reduce batch size"
-                )
+                suggestions.append("Increase memory limits or reduce batch size")
 
             if "FailedScheduling" in reason:
                 if "gpu" in message.lower():
@@ -149,9 +147,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
             if "ImagePullBackOff" in reason or "ErrImagePull" in reason:
                 issues.append("Failed to pull container image")
-                suggestions.append(
-                    "Verify image exists and credentials are configured"
-                )
+                suggestions.append("Verify image exists and credentials are configured")
 
         return {
             "job_name": name,
@@ -185,7 +181,9 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         # Get checkpoint info from annotation
         resource = server.k8s.get(
             client._k8s.get_resource(
-                __import__("rhoai_mcp_training.crds", fromlist=["TrainingCRDs"]).TrainingCRDs.TRAIN_JOB
+                __import__(
+                    "rhoai_mcp_training.crds", fromlist=["TrainingCRDs"]
+                ).TrainingCRDs.TRAIN_JOB
             ),
             job_name,
             namespace=namespace,
@@ -247,9 +245,7 @@ def _analyze_logs(logs: str) -> list[str]:
 
     # Gradient issues
     if "gradient overflow" in log_lower or "gradient underflow" in log_lower:
-        issues.append(
-            "Gradient overflow/underflow detected. Consider using gradient clipping."
-        )
+        issues.append("Gradient overflow/underflow detected. Consider using gradient clipping.")
 
     # Connection issues
     if "connection refused" in log_lower or "connection reset" in log_lower:
@@ -257,8 +253,6 @@ def _analyze_logs(logs: str) -> list[str]:
 
     # Import errors
     if "modulenotfounderror" in log_lower or "importerror" in log_lower:
-        issues.append(
-            "Missing Python module. Verify runtime image has all required packages."
-        )
+        issues.append("Missing Python module. Verify runtime image has all required packages.")
 
     return issues

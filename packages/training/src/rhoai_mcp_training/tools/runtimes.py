@@ -43,11 +43,13 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         # Extract initializers
         initializers = []
         for init in template_spec.get("initializers", []):
-            initializers.append({
-                "type": init.get("type"),
-                "image": init.get("image"),
-                "config": init.get("config", {}),
-            })
+            initializers.append(
+                {
+                    "type": init.get("type"),
+                    "image": init.get("image"),
+                    "config": init.get("config", {}),
+                }
+            )
 
         # Extract trainer config
         trainer = template_spec.get("trainer", {})
@@ -254,16 +256,20 @@ def _build_runtime_spec(
     initializers = []
 
     if model_initializer_image:
-        initializers.append({
-            "type": "model",
-            "image": model_initializer_image,
-        })
+        initializers.append(
+            {
+                "type": "model",
+                "image": model_initializer_image,
+            }
+        )
 
     if dataset_initializer_image:
-        initializers.append({
-            "type": "dataset",
-            "image": dataset_initializer_image,
-        })
+        initializers.append(
+            {
+                "type": "dataset",
+                "image": dataset_initializer_image,
+            }
+        )
 
     spec: dict[str, Any] = {
         "template": {

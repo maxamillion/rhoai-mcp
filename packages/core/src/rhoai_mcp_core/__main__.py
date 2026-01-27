@@ -176,9 +176,7 @@ def main() -> int:
         logger.info(f"Running with SSE transport on {config.host}:{config.port}")
         mcp.run(transport="sse")
     elif config.transport == TransportMode.STREAMABLE_HTTP:
-        logger.info(
-            f"Running with streamable-http transport on {config.host}:{config.port}"
-        )
+        logger.info(f"Running with streamable-http transport on {config.host}:{config.port}")
         mcp.run(transport="streamable-http")
 
     return 0

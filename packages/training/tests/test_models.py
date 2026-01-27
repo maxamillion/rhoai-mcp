@@ -45,18 +45,20 @@ class TestTrainingProgress:
 
     def test_from_annotation_full(self) -> None:
         """Test parsing full progress annotation."""
-        annotation = json.dumps({
-            "trainingState": "Training",
-            "currentEpoch": 3,
-            "totalEpochs": 10,
-            "currentStep": 1500,
-            "totalSteps": 5000,
-            "loss": 2.34,
-            "learningRate": 0.0001,
-            "throughput": 450.5,
-            "gradientNorm": 2.1,
-            "estimatedTimeRemaining": 3600,
-        })
+        annotation = json.dumps(
+            {
+                "trainingState": "Training",
+                "currentEpoch": 3,
+                "totalEpochs": 10,
+                "currentStep": 1500,
+                "totalSteps": 5000,
+                "loss": 2.34,
+                "learningRate": 0.0001,
+                "throughput": 450.5,
+                "gradientNorm": 2.1,
+                "estimatedTimeRemaining": 3600,
+            }
+        )
 
         progress = TrainingProgress.from_annotation(annotation)
 
@@ -73,9 +75,11 @@ class TestTrainingProgress:
 
     def test_from_annotation_minimal(self) -> None:
         """Test parsing minimal progress annotation."""
-        annotation = json.dumps({
-            "trainingState": "Initializing",
-        })
+        annotation = json.dumps(
+            {
+                "trainingState": "Initializing",
+            }
+        )
 
         progress = TrainingProgress.from_annotation(annotation)
 
@@ -166,14 +170,16 @@ class TestTrainJob:
                 },
             },
             annotations={
-                "trainer.opendatahub.io/trainerStatus": json.dumps({
-                    "trainingState": "Training",
-                    "currentEpoch": 5,
-                    "totalEpochs": 10,
-                    "currentStep": 2500,
-                    "totalSteps": 5000,
-                    "loss": 1.5,
-                }),
+                "trainer.opendatahub.io/trainerStatus": json.dumps(
+                    {
+                        "trainingState": "Training",
+                        "currentEpoch": 5,
+                        "totalEpochs": 10,
+                        "currentStep": 2500,
+                        "totalSteps": 5000,
+                        "loss": 1.5,
+                    }
+                ),
             },
         )
 

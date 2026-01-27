@@ -70,7 +70,7 @@ class RHOAIMCPPlugin(Protocol):
         """
         ...
 
-    def register_tools(self, mcp: "FastMCP", server: "RHOAIServer") -> None:
+    def register_tools(self, mcp: FastMCP, server: RHOAIServer) -> None:
         """Register MCP tools provided by this plugin.
 
         This method is called during server startup to register all
@@ -82,7 +82,7 @@ class RHOAIMCPPlugin(Protocol):
         """
         ...
 
-    def register_resources(self, mcp: "FastMCP", server: "RHOAIServer") -> None:
+    def register_resources(self, mcp: FastMCP, server: RHOAIServer) -> None:
         """Register MCP resources provided by this plugin.
 
         This method is called during server startup to register all
@@ -94,7 +94,7 @@ class RHOAIMCPPlugin(Protocol):
         """
         ...
 
-    def get_crd_definitions(self) -> list["CRDDefinition"]:
+    def get_crd_definitions(self) -> list[CRDDefinition]:
         """Return CRD definitions used by this plugin.
 
         This allows the core server to know about all CRDs without
@@ -105,7 +105,7 @@ class RHOAIMCPPlugin(Protocol):
         """
         ...
 
-    def health_check(self, server: "RHOAIServer") -> tuple[bool, str]:
+    def health_check(self, server: RHOAIServer) -> tuple[bool, str]:
         """Check if this plugin can operate correctly.
 
         This method is called during startup to verify that all
@@ -143,19 +143,19 @@ class BasePlugin:
         """Return plugin metadata."""
         return self._metadata
 
-    def register_tools(self, mcp: "FastMCP", server: "RHOAIServer") -> None:
+    def register_tools(self, mcp: FastMCP, server: RHOAIServer) -> None:
         """Register MCP tools. Override in subclass."""
         pass
 
-    def register_resources(self, mcp: "FastMCP", server: "RHOAIServer") -> None:
+    def register_resources(self, mcp: FastMCP, server: RHOAIServer) -> None:
         """Register MCP resources. Override in subclass."""
         pass
 
-    def get_crd_definitions(self) -> list["CRDDefinition"]:
+    def get_crd_definitions(self) -> list[CRDDefinition]:
         """Return CRD definitions. Override in subclass."""
         return []
 
-    def health_check(self, server: "RHOAIServer") -> tuple[bool, str]:
+    def health_check(self, server: RHOAIServer) -> tuple[bool, str]:
         """Check plugin health by verifying required CRDs are available.
 
         Default implementation checks that all CRDs listed in

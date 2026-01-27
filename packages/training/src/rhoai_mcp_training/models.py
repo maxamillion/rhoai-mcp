@@ -45,9 +45,7 @@ TRAINER_STATUS_ANNOTATION = "trainer.opendatahub.io/trainerStatus"
 class TrainingProgress(BaseModel):
     """Training progress parsed from trainer status annotation."""
 
-    state: TrainingState = Field(
-        TrainingState.INITIALIZING, description="Current training state"
-    )
+    state: TrainingState = Field(TrainingState.INITIALIZING, description="Current training state")
     current_epoch: int = Field(0, description="Current epoch number")
     total_epochs: int = Field(0, description="Total number of epochs")
     current_step: int = Field(0, description="Current training step")
@@ -166,7 +164,9 @@ class TrainJob(BaseModel):
         # Parse training progress from annotation
         annotations = metadata.annotations or {}
         progress_annotation = annotations.get(TRAINER_STATUS_ANNOTATION, "")
-        progress = TrainingProgress.from_annotation(progress_annotation) if progress_annotation else None
+        progress = (
+            TrainingProgress.from_annotation(progress_annotation) if progress_annotation else None
+        )
 
         # Parse creation timestamp
         creation_ts = getattr(metadata, "creation_timestamp", None)

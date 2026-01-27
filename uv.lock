@@ -4,13 +4,7 @@ requires-python = ">=3.10"
 
 [manifest]
 members = [
-    "rhoai-mcp-connections",
     "rhoai-mcp-core",
-    "rhoai-mcp-inference",
-    "rhoai-mcp-notebooks",
-    "rhoai-mcp-pipelines",
-    "rhoai-mcp-projects",
-    "rhoai-mcp-storage",
     "rhoai-mcp-training",
 ]
 
@@ -1165,17 +1159,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rhoai-mcp-connections"
-version = "0.1.0"
-source = { editable = "packages/connections" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "rhoai-mcp-core", editable = "packages/core" }]
-
-[[package]]
 name = "rhoai-mcp-core"
 version = "0.1.0"
 source = { editable = "packages/core" }
@@ -1210,119 +1193,6 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "rhoai-mcp-inference"
-version = "0.1.0"
-source = { editable = "packages/inference" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "rhoai-mcp-core", editable = "packages/core" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "rhoai-mcp-notebooks"
-version = "0.1.0"
-source = { editable = "packages/notebooks" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "rhoai-mcp-core", editable = "packages/core" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "rhoai-mcp-pipelines"
-version = "0.1.0"
-source = { editable = "packages/pipelines" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "rhoai-mcp-core", editable = "packages/core" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "rhoai-mcp-projects"
-version = "0.1.0"
-source = { editable = "packages/projects" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.optional-dependencies]
-full = [
-    { name = "rhoai-mcp-inference" },
-    { name = "rhoai-mcp-notebooks" },
-    { name = "rhoai-mcp-pipelines" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "rhoai-mcp-core", editable = "packages/core" },
-    { name = "rhoai-mcp-inference", marker = "extra == 'full'", editable = "packages/inference" },
-    { name = "rhoai-mcp-notebooks", marker = "extra == 'full'", editable = "packages/notebooks" },
-    { name = "rhoai-mcp-pipelines", marker = "extra == 'full'", editable = "packages/pipelines" },
-]
-provides-extras = ["full"]
-
-[[package]]
-name = "rhoai-mcp-storage"
-version = "0.1.0"
-source = { editable = "packages/storage" }
-dependencies = [
-    { name = "rhoai-mcp-core" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "rhoai-mcp-core", editable = "packages/core" }]
 
 [[package]]
 name = "rhoai-mcp-training"

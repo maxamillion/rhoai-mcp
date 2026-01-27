@@ -265,19 +265,19 @@ class TrainingClient:
 
         result = []
         for event in events.items:
-            result.append({
-                "type": event.type,
-                "reason": event.reason,
-                "message": event.message,
-                "timestamp": str(event.last_timestamp) if event.last_timestamp else None,
-                "count": getattr(event, "count", 1),
-            })
+            result.append(
+                {
+                    "type": event.type,
+                    "reason": event.reason,
+                    "message": event.message,
+                    "timestamp": str(event.last_timestamp) if event.last_timestamp else None,
+                    "count": getattr(event, "count", 1),
+                }
+            )
 
         return result
 
-    def list_training_job_pods(
-        self, namespace: str, job_name: str
-    ) -> list[dict[str, Any]]:
+    def list_training_job_pods(self, namespace: str, job_name: str) -> list[dict[str, Any]]:
         """List pods for a training job.
 
         Args:
@@ -294,12 +294,14 @@ class TrainingClient:
 
         result = []
         for pod in pods.items:
-            result.append({
-                "name": pod.metadata.name,
-                "phase": pod.status.phase,
-                "node": getattr(pod.spec, "node_name", None),
-                "ready": self._is_pod_ready(pod),
-            })
+            result.append(
+                {
+                    "name": pod.metadata.name,
+                    "phase": pod.status.phase,
+                    "node": getattr(pod.spec, "node_name", None),
+                    "ready": self._is_pod_ready(pod),
+                }
+            )
 
         return result
 

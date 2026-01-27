@@ -36,9 +36,7 @@ class TestLifecycleTools:
         # Check that tool decorator was called for each tool
         assert mock_mcp.tool.call_count >= 4  # At least 4 lifecycle tools
 
-    def test_suspend_training_job(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_suspend_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test suspending a training job."""
         mock_server.k8s.patch.return_value = _make_mock_resource("my-job", "training")
 
@@ -48,6 +46,7 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -68,6 +67,7 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -79,9 +79,7 @@ class TestLifecycleTools:
         assert "error" in result
         assert "Read-only" in result["error"]
 
-    def test_resume_training_job(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_resume_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test resuming a training job."""
         mock_server.k8s.patch.return_value = _make_mock_resource("my-job", "training")
 
@@ -91,6 +89,7 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -111,14 +110,13 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
         register_tools(mock_mcp, mock_server)
 
-        result = tools["delete_training_job"](
-            namespace="training", name="my-job", confirm=False
-        )
+        result = tools["delete_training_job"](namespace="training", name="my-job", confirm=False)
 
         assert "error" in result
         assert "confirm" in result["message"].lower()
@@ -133,26 +131,27 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
         register_tools(mock_mcp, mock_server)
 
-        result = tools["delete_training_job"](
-            namespace="training", name="my-job", confirm=True
-        )
+        result = tools["delete_training_job"](namespace="training", name="my-job", confirm=True)
 
         assert result["success"] is True
         assert result["deleted"] is True
         mock_server.k8s.delete.assert_called_once()
 
-    def test_wait_for_job_completion(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_wait_for_job_completion(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test waiting for job completion."""
         # First call returns Running, second returns Completed
         mock_server.k8s.get.side_effect = [
-            _make_mock_resource("my-job", "training", status={"conditions": [{"type": "Completed", "status": "True"}]}),
+            _make_mock_resource(
+                "my-job",
+                "training",
+                status={"conditions": [{"type": "Completed", "status": "True"}]},
+            ),
         ]
 
         tools = {}
@@ -161,6 +160,7 @@ class TestLifecycleTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool

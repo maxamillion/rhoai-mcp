@@ -173,14 +173,16 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
         runtime_list = []
         for runtime in runtimes:
-            runtime_list.append({
-                "name": runtime.name,
-                "namespace": runtime.namespace,
-                "framework": runtime.framework,
-                "has_model_initializer": runtime.has_model_initializer,
-                "has_dataset_initializer": runtime.has_dataset_initializer,
-                "scope": "cluster" if runtime.namespace is None else "namespace",
-            })
+            runtime_list.append(
+                {
+                    "name": runtime.name,
+                    "namespace": runtime.namespace,
+                    "framework": runtime.framework,
+                    "has_model_initializer": runtime.has_model_initializer,
+                    "has_dataset_initializer": runtime.has_dataset_initializer,
+                    "scope": "cluster" if runtime.namespace is None else "namespace",
+                }
+            )
 
         return {
             "count": len(runtime_list),

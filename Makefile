@@ -64,10 +64,11 @@ sync: ## Sync dependencies without installing dev packages
 	uv sync --all-packages --no-dev
 
 test: ## Run all tests
-	uv run pytest packages/*/tests tests/integration -v
+	uv run pytest packages/training/tests -v
+	uv run pytest tests/integration -v
 
-test-unit: ## Run unit tests only
-	uv run pytest packages/*/tests -v
+test-unit: ## Run unit tests only (training package)
+	uv run pytest packages/training/tests -v
 
 test-integration: ## Run integration tests only
 	uv run pytest tests/integration -v

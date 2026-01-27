@@ -20,9 +20,7 @@ class RHOAIError(Exception):
 class NotFoundError(RHOAIError):
     """Resource not found."""
 
-    def __init__(
-        self, resource_type: str, name: str, namespace: str | None = None
-    ) -> None:
+    def __init__(self, resource_type: str, name: str, namespace: str | None = None) -> None:
         location = f" in namespace '{namespace}'" if namespace else ""
         super().__init__(
             f"{resource_type} '{name}' not found{location}",
@@ -66,9 +64,7 @@ class OperationNotAllowedError(RHOAIError):
 class ResourceExistsError(RHOAIError):
     """Resource already exists."""
 
-    def __init__(
-        self, resource_type: str, name: str, namespace: str | None = None
-    ) -> None:
+    def __init__(self, resource_type: str, name: str, namespace: str | None = None) -> None:
         location = f" in namespace '{namespace}'" if namespace else ""
         super().__init__(
             f"{resource_type} '{name}' already exists{location}",

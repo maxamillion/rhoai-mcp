@@ -6,8 +6,9 @@
 # UV Workspace Configuration
 # =============================================================================
 [tool.uv]
-# Define workspace members - each package is independently versioned
-workspace = { members = ["packages/*"] }
+# Define workspace members - core package contains all domain modules,
+# training is an external plugin discovered via entry points
+workspace = { members = ["packages/core", "packages/training"] }
 
 [dependency-groups]
 dev = [
@@ -21,12 +22,6 @@ dev = [
 [tool.uv.sources]
 # Use local packages during development
 rhoai-mcp-core = { workspace = true }
-rhoai-mcp-notebooks = { workspace = true }
-rhoai-mcp-inference = { workspace = true }
-rhoai-mcp-pipelines = { workspace = true }
-rhoai-mcp-connections = { workspace = true }
-rhoai-mcp-storage = { workspace = true }
-rhoai-mcp-projects = { workspace = true }
 rhoai-mcp-training = { workspace = true }
 
 # =============================================================================
@@ -59,12 +54,6 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = [
     "rhoai_mcp_core",
-    "rhoai_mcp_notebooks",
-    "rhoai_mcp_inference",
-    "rhoai_mcp_pipelines",
-    "rhoai_mcp_connections",
-    "rhoai_mcp_storage",
-    "rhoai_mcp_projects",
     "rhoai_mcp_training",
 ]
 

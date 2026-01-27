@@ -183,7 +183,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                 f"    }}],\n"
                 f'    "volumes": [{{"name": "data", "persistentVolumeClaim": {{"claimName": "{pvc_name}"}}}}]\n'
                 f"  }}\n"
-                f"}}\'"
+                f"}}'"
             ),
             "pvc_name": pvc_name,
             "namespace": namespace,
@@ -210,13 +210,17 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             if pvc.spec and pvc.spec.resources and pvc.spec.resources.requests:
                 storage = pvc.spec.resources.requests.get("storage", "Unknown")
 
-            pvc_list.append({
-                "name": pvc.metadata.name,
-                "status": pvc.status.phase if pvc.status else "Unknown",
-                "size": storage,
-                "access_modes": list(pvc.spec.access_modes) if pvc.spec and pvc.spec.access_modes else [],
-                "storage_class": pvc.spec.storage_class_name if pvc.spec else None,
-            })
+            pvc_list.append(
+                {
+                    "name": pvc.metadata.name,
+                    "status": pvc.status.phase if pvc.status else "Unknown",
+                    "size": storage,
+                    "access_modes": list(pvc.spec.access_modes)
+                    if pvc.spec and pvc.spec.access_modes
+                    else [],
+                    "storage_class": pvc.spec.storage_class_name if pvc.spec else None,
+                }
+            )
 
         return {
             "namespace": namespace,

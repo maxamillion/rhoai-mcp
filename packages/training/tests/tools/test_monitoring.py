@@ -37,24 +37,24 @@ class TestMonitoringTools:
         # Check that tool decorator was called for each tool
         assert mock_mcp.tool.call_count >= 4  # At least 4 monitoring tools
 
-    def test_get_training_progress(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_get_training_progress(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting training progress."""
         mock_server.k8s.get.return_value = _make_mock_resource(
             "my-job",
             "training",
             annotations={
-                "trainer.opendatahub.io/trainerStatus": json.dumps({
-                    "trainingState": "Training",
-                    "currentEpoch": 5,
-                    "totalEpochs": 10,
-                    "currentStep": 2500,
-                    "totalSteps": 5000,
-                    "loss": 1.5,
-                    "learningRate": 0.0001,
-                    "throughput": 100.5,
-                }),
+                "trainer.opendatahub.io/trainerStatus": json.dumps(
+                    {
+                        "trainingState": "Training",
+                        "currentEpoch": 5,
+                        "totalEpochs": 10,
+                        "currentStep": 2500,
+                        "totalSteps": 5000,
+                        "loss": 1.5,
+                        "learningRate": 0.0001,
+                        "throughput": 100.5,
+                    }
+                ),
             },
         )
 
@@ -64,6 +64,7 @@ class TestMonitoringTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -77,9 +78,7 @@ class TestMonitoringTools:
         assert result["loss"] == pytest.approx(1.5)
         assert "progress_bar" in result
 
-    def test_get_training_logs(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_get_training_logs(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting training logs."""
         # Mock pod listing
         mock_pod = MagicMock()
@@ -100,6 +99,7 @@ class TestMonitoringTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -110,9 +110,7 @@ class TestMonitoringTools:
         assert "logs" in result
         assert "Epoch 1/10" in result["logs"]
 
-    def test_get_job_events(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_get_job_events(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting job events."""
         mock_event1 = MagicMock()
         mock_event1.type = "Normal"
@@ -136,6 +134,7 @@ class TestMonitoringTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
@@ -146,21 +145,21 @@ class TestMonitoringTools:
         assert len(result["events"]) == 2
         assert result["has_warnings"] is True
 
-    def test_manage_checkpoints(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
+    def test_manage_checkpoints(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test managing checkpoints."""
         mock_server.k8s.get.return_value = _make_mock_resource(
             "my-job",
             "training",
             annotations={
-                "trainer.opendatahub.io/checkpoint": json.dumps({
-                    "latest": "/workspace/checkpoints/checkpoint-2500",
-                    "checkpoints": [
-                        {"step": 1000, "path": "/workspace/checkpoints/checkpoint-1000"},
-                        {"step": 2500, "path": "/workspace/checkpoints/checkpoint-2500"},
-                    ],
-                }),
+                "trainer.opendatahub.io/checkpoint": json.dumps(
+                    {
+                        "latest": "/workspace/checkpoints/checkpoint-2500",
+                        "checkpoints": [
+                            {"step": 1000, "path": "/workspace/checkpoints/checkpoint-1000"},
+                            {"step": 2500, "path": "/workspace/checkpoints/checkpoint-2500"},
+                        ],
+                    }
+                ),
             },
         )
 
@@ -170,6 +169,7 @@ class TestMonitoringTools:
             def decorator(f):
                 tools[f.__name__] = f
                 return f
+
             return decorator
 
         mock_mcp.tool = capture_tool
