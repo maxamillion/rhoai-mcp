@@ -1,5 +1,5 @@
 # Makefile for RHOAI MCP Server
-# Podman-first container management and uv workspace development
+# Podman-first container management and uv development
 
 # =============================================================================
 # Configuration
@@ -49,7 +49,7 @@ help: ## Show this help message
 	@grep -E '^(build|run|stop|logs|shell|clean|info|test-):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # =============================================================================
-# Development (uv workspace)
+# Development (uv)
 # =============================================================================
 
 dev: install ## Setup development environment
@@ -57,11 +57,11 @@ dev: install ## Setup development environment
 	@echo "Run 'make test' to run tests"
 	@echo "Run 'uv run rhoai-mcp --help' to run the server"
 
-install: ## Install all workspace packages in development mode
-	uv sync --all-packages
+install: ## Install package in development mode
+	uv sync
 
 sync: ## Sync dependencies without installing dev packages
-	uv sync --all-packages --no-dev
+	uv sync --no-dev
 
 test: ## Run all tests
 	uv run pytest tests/ -v
@@ -72,21 +72,15 @@ test-unit: ## Run unit tests only (training domain)
 test-integration: ## Run integration tests only
 	uv run pytest tests/integration -v
 
-test-package: ## Run tests for a specific package (e.g., make test-package PKG=core)
-ifndef PKG
-	$(error PKG is required. Usage: make test-package PKG=core)
-endif
-	uv run pytest packages/$(PKG)/tests -v
-
 lint: ## Run linter (ruff)
-	uv run ruff check packages/
+	uv run ruff check src/
 
 format: ## Format code (ruff)
-	uv run ruff format packages/
-	uv run ruff check --fix packages/
+	uv run ruff format src/
+	uv run ruff check --fix src/
 
 typecheck: ## Run type checker (mypy)
-	uv run mypy packages/*/src
+	uv run mypy src/
 
 check: lint typecheck ## Run all checks (lint + typecheck)
 
@@ -203,9 +197,8 @@ clean: stop ## Remove container and image
 
 clean-dev: ## Clean development artifacts
 	rm -rf .venv
-	rm -rf packages/*/.venv
-	rm -rf packages/*/dist
-	rm -rf packages/*/*.egg-info
+	rm -rf dist
+	rm -rf *.egg-info
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
@@ -222,7 +215,7 @@ test-build: build ## Verify the image builds and runs
 	$(CONTAINER_RUNTIME) run --rm $(FULL_IMAGE) --version
 
 test-plugins: ## Verify all plugins are discovered
-	uv run python -c "from rhoai_mcp_core.server import RHOAIServer; s = RHOAIServer(); print('Plugins:', list(s._plugins.keys()))"
+	uv run python -c "from rhoai_mcp.server import RHOAIServer; s = RHOAIServer(); print('Plugins:', list(s._plugins.keys()))"
 
 # =============================================================================
 # Info
@@ -234,6 +227,3 @@ info: ## Show configuration
 	@echo "RUNTIME:   $(CONTAINER_RUNTIME)"
 	@echo "PORT:      $(PORT)"
 	@echo "KUBECONFIG: $(KUBECONFIG)"
-	@echo ""
-	@echo "Workspace packages:"
-	@ls -1 packages/

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rhoai_mcp_core.domains.training.tools.monitoring import register_tools
+from rhoai_mcp.domains.training.tools.monitoring import register_tools
 
 
 class TestMonitoringTools:

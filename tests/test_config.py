@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from rhoai_mcp_core.config import (
+from rhoai_mcp.config import (
     RHOAIConfig,
     AuthMode,
     TransportMode,

@@ -15,42 +15,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Set working directory (UBI default is /opt/app-root/src)
 WORKDIR /opt/app-root/src
 
-# Copy workspace configuration and lockfile first for better layer caching
-COPY pyproject.toml uv.lock ./
+# Copy project files for dependency resolution
+COPY pyproject.toml uv.lock README.md ./
 
-# Copy all package definitions (needed for workspace resolution)
-COPY packages/core/pyproject.toml packages/core/
-COPY packages/notebooks/pyproject.toml packages/notebooks/
-COPY packages/inference/pyproject.toml packages/inference/
-COPY packages/pipelines/pyproject.toml packages/pipelines/
-COPY packages/connections/pyproject.toml packages/connections/
-COPY packages/storage/pyproject.toml packages/storage/
-COPY packages/projects/pyproject.toml packages/projects/
+# Copy source code
+COPY src/ ./src/
 
-# Copy README files (required by pyproject.toml metadata)
-COPY README.md ./
-COPY packages/core/README.md packages/core/ 2>/dev/null || echo "Core README not required"
-COPY packages/notebooks/README.md packages/notebooks/ 2>/dev/null || echo "Notebooks README not required"
-COPY packages/inference/README.md packages/inference/ 2>/dev/null || echo "Inference README not required"
-COPY packages/pipelines/README.md packages/pipelines/ 2>/dev/null || echo "Pipelines README not required"
-COPY packages/connections/README.md packages/connections/ 2>/dev/null || echo "Connections README not required"
-COPY packages/storage/README.md packages/storage/ 2>/dev/null || echo "Storage README not required"
-COPY packages/projects/README.md packages/projects/ 2>/dev/null || echo "Projects README not required"
-
-# Create placeholder README files if they don't exist
-RUN for pkg in core notebooks inference pipelines connections storage projects; do \
-        if [ ! -f "packages/$pkg/README.md" ]; then \
-            echo "# rhoai-mcp-$pkg" > "packages/$pkg/README.md"; \
-        fi \
-    done
-
-# Install dependencies only (no dev dependencies, no install of local packages yet)
-RUN uv sync --frozen --no-dev --no-install-workspace
-
-# Copy all package source code
-COPY packages/ ./packages/
-
-# Install all workspace packages
+# Install dependencies and package
 RUN uv sync --frozen --no-dev
 
 # =============================================================================
@@ -71,8 +42,8 @@ WORKDIR /opt/app-root/src
 # Copy virtual environment from builder
 COPY --from=builder /opt/app-root/src/.venv /opt/app-root/src/.venv
 
-# Copy package source code (needed for editable installs)
-COPY --from=builder /opt/app-root/src/packages /opt/app-root/src/packages
+# Copy source code (needed for editable installs)
+COPY --from=builder /opt/app-root/src/src /opt/app-root/src/src
 
 # Add virtual environment to PATH
 ENV PATH="/opt/app-root/src/.venv/bin:$PATH"

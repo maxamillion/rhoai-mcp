@@ -1,6 +1,6 @@
 """Tests for training CRD definitions."""
 
-from rhoai_mcp_core.domains.training.crds import TrainingCRDs
+from rhoai_mcp.domains.training.crds import TrainingCRDs
 
 
 class TestTrainingCRDs:

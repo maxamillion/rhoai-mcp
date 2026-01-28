@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from rhoai_mcp_core.config import RHOAIConfig, AuthMode
+from rhoai_mcp.config import RHOAIConfig, AuthMode
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def mock_config() -> RHOAIConfig:
 @pytest.fixture
 def mock_k8s_client():
     """Create a mocked K8s client."""
-    with patch("rhoai_mcp_core.clients.base.K8sClient") as mock_class:
+    with patch("rhoai_mcp.clients.base.K8sClient") as mock_class:
         client = MagicMock()
         client.is_connected = True
         mock_class.return_value = client
