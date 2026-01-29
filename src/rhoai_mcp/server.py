@@ -319,6 +319,133 @@ class RHOAIServer:
 
         logger.info("Registered core MCP resources")
 
+        # Register tool catalog and guidance
+        self._register_tool_guidance(mcp)
+
+    def _register_tool_guidance(self, mcp: FastMCP) -> None:
+        """Register tool catalog resource and guidance tools."""
+        from rhoai_mcp.tools import (
+            get_all_tool_metadata,
+            get_follow_ups,
+            get_prerequisites,
+            get_tool_metadata,
+            get_workflow_for_goal,
+        )
+        from rhoai_mcp.tools.relationships import get_all_workflows
+
+        @mcp.resource("rhoai://tools/catalog")
+        def tools_catalog() -> dict:
+            """Get the complete tool catalog with metadata and workflows.
+
+            Returns all tool metadata including examples, prerequisites,
+            related tools, and common workflows. Use this to understand
+            what tools are available and how to use them effectively.
+            """
+            metadata = get_all_tool_metadata()
+            workflows = get_all_workflows()
+
+            return {
+                "tools": {name: meta.to_dict() for name, meta in metadata.items()},
+                "workflows": [
+                    {
+                        "name": wf.name,
+                        "goal": wf.goal,
+                        "steps": wf.steps,
+                        "optional_steps": wf.optional_steps,
+                        "tags": wf.tags,
+                    }
+                    for wf in workflows
+                ],
+                "total_tools": len(metadata),
+                "total_workflows": len(workflows),
+            }
+
+        @mcp.tool()
+        def get_tool_guidance(tool_name: str) -> dict:
+            """Get detailed guidance for using a specific tool.
+
+            Returns metadata, examples, prerequisites, and common mistakes
+            for a tool. Use this before calling an unfamiliar tool to
+            understand how to use it correctly.
+
+            Args:
+                tool_name: The name of the tool to get guidance for.
+
+            Returns:
+                Tool guidance including examples and prerequisites.
+            """
+            metadata = get_tool_metadata(tool_name)
+            if not metadata:
+                return {
+                    "error": f"No guidance available for tool '{tool_name}'",
+                    "suggestion": "The tool may exist but has no registered metadata. "
+                    "Try using it directly or check the tools catalog.",
+                }
+
+            prerequisites = get_prerequisites(tool_name)
+            follow_ups = get_follow_ups(tool_name)
+
+            return {
+                "name": metadata.name,
+                "display_name": metadata.display_name,
+                "description": metadata.description,
+                "domain": metadata.domain,
+                "examples": [
+                    {
+                        "name": ex.name,
+                        "description": ex.description,
+                        "arguments": ex.arguments,
+                        "expected_result": ex.expected_result_summary,
+                    }
+                    for ex in metadata.examples
+                ],
+                "prerequisites": prerequisites,
+                "suggested_follow_ups": follow_ups,
+                "common_mistakes": metadata.common_mistakes,
+                "error_guidance": metadata.error_guidance,
+            }
+
+        @mcp.tool()
+        def suggest_workflow(goal: str) -> dict:
+            """Suggest a workflow for achieving a goal.
+
+            Given a goal description, returns recommended tool sequences
+            and workflows. Use this when you have a high-level objective
+            and need to know which tools to use and in what order.
+
+            Args:
+                goal: Description of what you want to achieve
+                    (e.g., 'create a gpu workbench', 'deploy a model').
+
+            Returns:
+                Recommended workflows with tool sequences.
+            """
+            workflows = get_workflow_for_goal(goal)
+
+            if not workflows:
+                return {
+                    "message": f"No pre-defined workflow found for: {goal}",
+                    "suggestion": "Check the tools catalog for available tools, "
+                    "or describe your goal differently.",
+                }
+
+            return {
+                "goal": goal,
+                "recommended_workflows": [
+                    {
+                        "name": wf.name,
+                        "description": wf.goal,
+                        "steps": wf.steps,
+                        "optional_steps": wf.optional_steps,
+                        "tags": wf.tags,
+                    }
+                    for wf in workflows[:3]  # Top 3 matches
+                ],
+                "note": "Execute steps in order. Optional steps can be added as needed.",
+            }
+
+        logger.info("Registered tool catalog and guidance")
+
 
 # Global server instance
 _server: RHOAIServer | None = None

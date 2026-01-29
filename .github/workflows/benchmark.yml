@@ -1,0 +1,169 @@
+name: Benchmarks
+
+on:
+  # Run quick benchmarks on every PR
+  pull_request:
+    branches: [main]
+  # Run full benchmarks nightly
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Benchmark suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - workbench
+          - project
+          - serving
+          - training
+          - e2e
+      quick:
+        description: 'Run only quick benchmarks'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  quick-benchmarks:
+    name: Quick Benchmarks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run quick benchmarks
+        run: |
+          uv run rhoai-mcp benchmark --quick --output benchmark-results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: quick-benchmark-results
+          path: benchmark-results.json
+          retention-days: 14
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('benchmark-results.json', 'utf8'));
+
+            let summary = '## Benchmark Results\n\n';
+            let totalPassed = 0;
+            let totalFailed = 0;
+
+            for (const [suiteName, suiteResults] of Object.entries(results)) {
+              summary += `### ${suiteName.toUpperCase()} Suite\n`;
+              summary += `- Passed: ${suiteResults.passed_cases}/${suiteResults.total_cases}\n`;
+              summary += `- Grade: ${suiteResults.grade}\n\n`;
+              totalPassed += suiteResults.passed_cases;
+              totalFailed += suiteResults.failed_cases;
+            }
+
+            const total = totalPassed + totalFailed;
+            const passRate = total > 0 ? ((totalPassed / total) * 100).toFixed(1) : 0;
+            summary += `**Overall: ${totalPassed}/${total} passed (${passRate}%)**\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  full-benchmarks:
+    name: Full Benchmarks
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run benchmarks
+        run: |
+          SUITE=${{ github.event.inputs.suite || 'all' }}
+          QUICK_FLAG=""
+          if [ "${{ github.event.inputs.quick }}" = "true" ]; then
+            QUICK_FLAG="--quick"
+          fi
+          uv run rhoai-mcp benchmark --suite $SUITE $QUICK_FLAG --output benchmark-results.json --threshold 0.70
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-benchmark-results-${{ github.run_id }}
+          path: benchmark-results.json
+          retention-days: 90
+
+      - name: Check pass rate
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          with open('benchmark-results.json') as f:
+              results = json.load(f)
+
+          total_passed = 0
+          total_failed = 0
+
+          for suite_name, suite_results in results.items():
+              total_passed += suite_results['passed_cases']
+              total_failed += suite_results['failed_cases']
+
+          total = total_passed + total_failed
+          pass_rate = total_passed / total if total > 0 else 0
+
+          print(f"Pass rate: {pass_rate:.1%} ({total_passed}/{total})")
+
+          threshold = 0.80
+          if pass_rate < threshold:
+              print(f"FAIL: Pass rate {pass_rate:.1%} is below threshold {threshold:.1%}")
+              sys.exit(1)
+
+          print("PASS: Benchmarks passed threshold")
+          EOF
+
+  benchmark-status:
+    name: Benchmark Status
+    if: always() && github.event_name == 'pull_request'
+    needs: [quick-benchmarks]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check benchmark status
+        run: |
+          if [ "${{ needs.quick-benchmarks.result }}" = "failure" ]; then
+            echo "Benchmarks failed"
+            exit 1
+          fi
+          echo "Benchmarks passed"

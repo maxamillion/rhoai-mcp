@@ -1,8 +1,10 @@
 """Entry point for RHOAI MCP server."""
 
 import argparse
+import json
 import logging
 import sys
+from pathlib import Path
 from typing import Any
 
 from rhoai_mcp import __version__
@@ -28,6 +30,44 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="rhoai-mcp",
         description="MCP server for Red Hat OpenShift AI",
+    )
+
+    # Create subparsers for commands
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Benchmark subcommand
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run agent performance benchmarks",
+    )
+    benchmark_parser.add_argument(
+        "--suite",
+        choices=["all", "workbench", "project", "serving", "training", "e2e"],
+        default="all",
+        help="Benchmark suite to run (default: all)",
+    )
+    benchmark_parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Only run quick benchmarks (tagged 'quick')",
+    )
+    benchmark_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output file for results (JSON format)",
+    )
+    benchmark_parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.70,
+        help="Minimum score to pass (default: 0.70)",
+    )
+    benchmark_parser.add_argument(
+        "--list",
+        action="store_true",
+        dest="list_cases",
+        help="List available benchmark cases without running",
     )
 
     parser.add_argument(
@@ -96,9 +136,108 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def run_benchmark(args: argparse.Namespace) -> int:
+    """Run benchmark command."""
+    from rhoai_mcp.benchmarks import (
+        BenchmarkRunner,
+        get_all_cases,
+        get_all_suites,
+        get_quick_cases,
+        get_suite,
+    )
+
+    setup_logging(LogLevel.INFO)
+    logger = logging.getLogger(__name__)
+
+    # List mode - just show available benchmarks
+    if args.list_cases:
+        cases = get_quick_cases() if args.quick else get_all_cases()
+        print(f"\nAvailable benchmark cases ({len(cases)} total):\n")
+        for case in cases:
+            tags = ", ".join(case.tags) if case.tags else "none"
+            print(f"  - {case.name}")
+            print(f"    Tags: {tags}")
+            print(f"    Task: {case.task_prompt[:60]}...")
+            print()
+        return 0
+
+    # Get suites to run
+    if args.suite == "all":
+        suites = get_all_suites()
+    else:
+        suite = get_suite(args.suite)
+        if not suite:
+            logger.error(f"Unknown suite: {args.suite}")
+            return 1
+        suites = [suite]
+
+    logger.info(f"Running benchmarks: {', '.join(s.name for s in suites)}")
+    if args.quick:
+        logger.info("Quick mode: only running cases tagged 'quick'")
+
+    # Create runner
+    runner = BenchmarkRunner(pass_threshold=args.threshold)
+
+    # Note: Without an actual agent executor, we just demonstrate the framework.
+    # In a real scenario, you would integrate with an agent that executes tasks.
+    def mock_executor(_prompt: str) -> list[dict[str, Any]]:
+        """Mock executor for demonstration - returns empty tool calls."""
+        logger.warning(
+            "Using mock executor. In production, integrate with an actual agent."
+        )
+        return []
+
+    # Run benchmarks
+    all_results = runner.run_all_suites(suites, mock_executor, quick_only=args.quick)
+
+    # Print summary
+    print("\n" + "=" * 60)
+    print("BENCHMARK RESULTS")
+    print("=" * 60)
+
+    total_passed = 0
+    total_failed = 0
+
+    for suite_name, results in all_results.items():
+        print(f"\n{suite_name.upper()} Suite:")
+        print(f"  Passed: {results.passed_cases}/{results.total_cases}")
+        print(f"  Pass Rate: {results.pass_rate:.1%}")
+        print(f"  Average Score: {results.average_score:.2f}")
+        print(f"  Grade: {results.grade}")
+
+        total_passed += results.passed_cases
+        total_failed += results.failed_cases
+
+    print("\n" + "-" * 60)
+    total = total_passed + total_failed
+    overall_rate = total_passed / total if total > 0 else 0
+    print(f"TOTAL: {total_passed}/{total} passed ({overall_rate:.1%})")
+    print("=" * 60)
+
+    # Save results if output specified
+    if args.output:
+        output_path = Path(args.output)
+        combined_results = {
+            name: results.to_dict() for name, results in all_results.items()
+        }
+        output_path.write_text(json.dumps(combined_results, indent=2))
+        logger.info(f"Results saved to: {output_path}")
+
+    # Return non-zero if any failures and below threshold
+    if overall_rate < args.threshold:
+        logger.error(f"Pass rate {overall_rate:.1%} is below threshold {args.threshold:.1%}")
+        return 1
+
+    return 0
+
+
 def main() -> int:
     """Main entry point."""
     args = parse_args()
+
+    # Handle benchmark subcommand
+    if args.command == "benchmark":
+        return run_benchmark(args)
 
     # Build config from args, falling back to environment/defaults
     config_kwargs: dict[str, Any] = {}

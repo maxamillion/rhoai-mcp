@@ -6,6 +6,7 @@ from mcp.server.fastmcp import FastMCP
 
 from rhoai_mcp.domains.notebooks.client import NotebookClient
 from rhoai_mcp.domains.notebooks.models import WorkbenchCreate
+from rhoai_mcp.tools.metadata import ToolExample, ToolMetadata, register_tool_metadata
 from rhoai_mcp.utils.response import (
     PaginatedResponse,
     ResponseBuilder,
@@ -15,6 +16,265 @@ from rhoai_mcp.utils.response import (
 
 if TYPE_CHECKING:
     from rhoai_mcp.server import RHOAIServer
+
+
+def _register_tool_metadata() -> None:
+    """Register metadata for notebook domain tools."""
+    # list_workbenches
+    register_tool_metadata(
+        ToolMetadata(
+            name="list_workbenches",
+            display_name="List Workbenches",
+            description="List all workbenches (Jupyter notebook environments) in a project.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="basic_list",
+                    description="List all workbenches in a project",
+                    arguments={"namespace": "my-project"},
+                    expected_result_summary="Paginated list of workbenches with names and status",
+                    tags=["quick", "basic"],
+                ),
+                ToolExample(
+                    name="minimal_verbosity",
+                    description="List workbenches with minimal output to save tokens",
+                    arguments={"namespace": "my-project", "verbosity": "minimal"},
+                    expected_result_summary="Compact list with only names and status",
+                    tags=["quick", "efficient"],
+                ),
+            ],
+            prerequisites=["list_projects"],
+            related_tools=["get_workbench", "create_workbench"],
+            common_mistakes=[
+                "Using wrong namespace name - use list_projects first to verify",
+            ],
+            tags=["read", "list"],
+        )
+    )
+
+    # get_workbench
+    register_tool_metadata(
+        ToolMetadata(
+            name="get_workbench",
+            display_name="Get Workbench Details",
+            description="Get detailed information about a specific workbench.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="full_details",
+                    description="Get complete workbench information",
+                    arguments={"name": "my-workbench", "namespace": "my-project"},
+                    expected_result_summary="Full workbench details including resources, status, URL",
+                    tags=["basic"],
+                ),
+                ToolExample(
+                    name="status_check",
+                    description="Quick status check with minimal output",
+                    arguments={
+                        "name": "my-workbench",
+                        "namespace": "my-project",
+                        "verbosity": "minimal",
+                    },
+                    expected_result_summary="Name and current status only",
+                    tags=["quick"],
+                ),
+            ],
+            prerequisites=["list_workbenches"],
+            related_tools=["get_workbench_url", "start_workbench", "stop_workbench"],
+            tags=["read", "detail"],
+        )
+    )
+
+    # create_workbench
+    register_tool_metadata(
+        ToolMetadata(
+            name="create_workbench",
+            display_name="Create Workbench",
+            description="Create a new Jupyter notebook workbench in a project.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="minimal_workbench",
+                    description="Create a basic workbench with defaults",
+                    arguments={
+                        "name": "my-workbench",
+                        "namespace": "my-project",
+                        "image": "jupyter-datascience-notebook:2024.1",
+                    },
+                    expected_result_summary="Created workbench with name, status, and URL",
+                    tags=["basic"],
+                ),
+                ToolExample(
+                    name="gpu_workbench",
+                    description="Create a GPU-enabled workbench for ML training",
+                    arguments={
+                        "name": "ml-workbench",
+                        "namespace": "ml-project",
+                        "image": "pytorch-notebook:2024.1",
+                        "gpu_count": 1,
+                        "size": "Large",
+                        "storage_size": "50Gi",
+                    },
+                    expected_result_summary="GPU workbench created and starting",
+                    tags=["gpu", "ml"],
+                ),
+                ToolExample(
+                    name="workbench_with_connections",
+                    description="Create workbench with S3 data connections mounted",
+                    arguments={
+                        "name": "data-workbench",
+                        "namespace": "my-project",
+                        "image": "jupyter-datascience-notebook:2024.1",
+                        "data_connections": ["my-s3-connection"],
+                    },
+                    expected_result_summary="Workbench with S3 credentials as env vars",
+                    tags=["data", "s3"],
+                ),
+            ],
+            prerequisites=["list_notebook_images", "list_projects"],
+            related_tools=["get_workbench", "get_workbench_url", "list_data_connections"],
+            common_mistakes=[
+                "Using invalid image name - call list_notebook_images first",
+                "Using non-DNS-compatible name (uppercase, spaces, underscores)",
+                "Requesting GPUs when none are available in cluster",
+                "Not checking project exists before creating workbench",
+            ],
+            error_guidance={
+                "ImagePullBackOff": "Image not found. Use list_notebook_images to get valid images.",
+                "GPU unavailable": "No GPUs available. Set gpu_count=0 or check accelerator profiles.",
+                "exceeded quota": "Reduce resource requests or contact administrator.",
+                "already exists": "Workbench name taken. Use a different name.",
+            },
+            tags=["write", "create"],
+        )
+    )
+
+    # start_workbench
+    register_tool_metadata(
+        ToolMetadata(
+            name="start_workbench",
+            display_name="Start Workbench",
+            description="Start a stopped workbench.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="start",
+                    description="Start a stopped workbench",
+                    arguments={"name": "my-workbench", "namespace": "my-project"},
+                    expected_result_summary="Workbench is starting with updated status",
+                    tags=["basic"],
+                ),
+            ],
+            prerequisites=["get_workbench"],
+            related_tools=["stop_workbench", "get_workbench"],
+            common_mistakes=[
+                "Starting an already running workbench (harmless but unnecessary)",
+            ],
+            tags=["write", "lifecycle"],
+        )
+    )
+
+    # stop_workbench
+    register_tool_metadata(
+        ToolMetadata(
+            name="stop_workbench",
+            display_name="Stop Workbench",
+            description="Stop a running workbench to free resources.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="stop",
+                    description="Stop a running workbench",
+                    arguments={"name": "my-workbench", "namespace": "my-project"},
+                    expected_result_summary="Workbench is stopping, data preserved",
+                    tags=["basic"],
+                ),
+            ],
+            prerequisites=["get_workbench"],
+            related_tools=["start_workbench", "get_workbench"],
+            tags=["write", "lifecycle"],
+        )
+    )
+
+    # delete_workbench
+    register_tool_metadata(
+        ToolMetadata(
+            name="delete_workbench",
+            display_name="Delete Workbench",
+            description="Permanently delete a workbench. PVC is preserved.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="delete_confirmed",
+                    description="Delete a workbench with confirmation",
+                    arguments={
+                        "name": "my-workbench",
+                        "namespace": "my-project",
+                        "confirm": True,
+                    },
+                    expected_result_summary="Workbench deleted, PVC preserved",
+                    tags=["dangerous"],
+                ),
+            ],
+            prerequisites=["get_workbench"],
+            related_tools=["create_workbench", "list_storage"],
+            common_mistakes=[
+                "Forgetting to set confirm=True",
+                "Expecting PVC to be deleted (it's preserved)",
+            ],
+            tags=["write", "delete", "dangerous"],
+        )
+    )
+
+    # list_notebook_images
+    register_tool_metadata(
+        ToolMetadata(
+            name="list_notebook_images",
+            display_name="List Notebook Images",
+            description="List available container images for workbenches.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="list_images",
+                    description="Get all available notebook images",
+                    arguments={},
+                    expected_result_summary="List of images with names and descriptions",
+                    tags=["quick", "basic"],
+                ),
+            ],
+            related_tools=["create_workbench"],
+            tags=["read", "list"],
+        )
+    )
+
+    # get_workbench_url
+    register_tool_metadata(
+        ToolMetadata(
+            name="get_workbench_url",
+            display_name="Get Workbench URL",
+            description="Get the access URL for a running workbench.",
+            domain="notebooks",
+            examples=[
+                ToolExample(
+                    name="get_url",
+                    description="Get the browser access URL",
+                    arguments={"name": "my-workbench", "namespace": "my-project"},
+                    expected_result_summary="URL and status indicating accessibility",
+                    tags=["quick", "basic"],
+                ),
+            ],
+            prerequisites=["get_workbench"],
+            related_tools=["start_workbench"],
+            common_mistakes=[
+                "Getting URL before workbench is Running (URL exists but not accessible)",
+            ],
+            tags=["read"],
+        )
+    )
+
+
+# Register metadata on module load
+_register_tool_metadata()
 
 
 def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
