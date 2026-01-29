@@ -29,7 +29,8 @@ else
 endif
 
 .PHONY: help build build-no-cache run run-http run-stdio run-dev run-token stop logs shell clean info
-.PHONY: dev install sync test test-unit test-integration test-benchmark lint format check typecheck
+.PHONY: dev install sync test test-unit test-integration test-benchmark-framework lint format check typecheck
+.PHONY: benchmark-simulate benchmark-agent
 
 # =============================================================================
 # Help
@@ -43,7 +44,10 @@ help: ## Show this help message
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Development:"
-	@grep -E '^(dev|install|sync|test|test-unit|test-integration|test-benchmark|lint|format|check|typecheck):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(dev|install|sync|test|test-unit|test-integration|test-benchmark-framework|lint|format|check|typecheck):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Benchmarks:"
+	@grep -E '^(benchmark-simulate|benchmark-agent):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Container:"
 	@grep -E '^(build|run|stop|logs|shell|clean|info|test-):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -72,7 +76,7 @@ test-unit: ## Run unit tests only (training domain)
 test-integration: ## Run integration tests only
 	uv run pytest tests/integration -v
 
-test-benchmark: ## Run benchmark framework tests
+test-benchmark-framework: ## Run benchmark framework tests
 	uv run pytest tests/benchmarks -v
 
 lint: ## Run linter (ruff)
@@ -86,6 +90,20 @@ typecheck: ## Run type checker (mypy)
 	uv run mypy src/
 
 check: lint typecheck ## Run all checks (lint + typecheck)
+
+# =============================================================================
+# Benchmarks
+# =============================================================================
+
+benchmark-simulate: ## Run benchmarks in simulation mode
+	uv run rhoai-mcp benchmark --mode simulate
+
+benchmark-agent: ## Run benchmarks against Claude agent (requires API key + running server)
+	@if [ -z "$$RHOAI_MCP_ANTHROPIC_API_KEY" ]; then \
+		echo "Error: RHOAI_MCP_ANTHROPIC_API_KEY not set"; \
+		exit 1; \
+	fi
+	uv run rhoai-mcp benchmark --mode agent
 
 # =============================================================================
 # Build

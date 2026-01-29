@@ -142,6 +142,20 @@ class RHOAIConfig(BaseSettings):
         description="Enable evaluation harness for tracking agent performance",
     )
 
+    # Agent benchmark settings
+    anthropic_api_key: str | None = Field(
+        default=None,
+        description="Anthropic API key for agent benchmarks",
+    )
+    anthropic_model: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Claude model to use for agent benchmarks",
+    )
+    benchmark_server_url: str = Field(
+        default="http://127.0.0.1:8000",
+        description="MCP server URL for agent benchmarks",
+    )
+
     @field_validator("kubeconfig_path", mode="before")
     @classmethod
     def resolve_kubeconfig_path(cls, v: str | Path | None) -> Path | None:

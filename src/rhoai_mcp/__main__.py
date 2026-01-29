@@ -69,6 +69,30 @@ def parse_args() -> argparse.Namespace:
         dest="list_cases",
         help="List available benchmark cases without running",
     )
+    benchmark_parser.add_argument(
+        "--mode",
+        choices=["simulate", "agent"],
+        default="simulate",
+        help="Benchmark mode: simulate (default) or agent",
+    )
+    benchmark_parser.add_argument(
+        "--scenario-dir",
+        type=str,
+        default=None,
+        help="Directory containing custom JSON scenario files (simulation mode)",
+    )
+    benchmark_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Claude model to use (agent mode, default: claude-sonnet-4-20250514)",
+    )
+    benchmark_parser.add_argument(
+        "--server-url",
+        type=str,
+        default=None,
+        help="MCP server URL (agent mode, default: http://127.0.0.1:8000)",
+    )
 
     parser.add_argument(
         "--version",
@@ -136,18 +160,135 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_benchmark(args: argparse.Namespace) -> int:
-    """Run benchmark command."""
-    from rhoai_mcp.benchmarks import (
-        BenchmarkRunner,
-        get_all_cases,
-        get_all_suites,
-        get_quick_cases,
-        get_suite,
+def run_benchmark_simulate(args: argparse.Namespace) -> int:
+    """Run benchmarks in simulation mode."""
+    from rhoai_mcp.benchmarks.simulation import (
+        print_simulation_summary,
+        run_simulation_benchmarks,
     )
 
     setup_logging(LogLevel.INFO)
     logger = logging.getLogger(__name__)
+
+    logger.info("Running benchmarks in simulation mode")
+    if args.quick:
+        logger.info("Quick mode: only running scenarios tagged 'quick'")
+
+    scenario_dir = Path(args.scenario_dir) if args.scenario_dir else None
+
+    results = run_simulation_benchmarks(
+        quick_only=args.quick,
+        scenario_dir=scenario_dir,
+        pass_threshold=args.threshold,
+    )
+
+    print_simulation_summary(results)
+
+    # Save results if output specified
+    if args.output:
+        output_path = Path(args.output)
+        output_path.write_text(json.dumps(results, indent=2))
+        logger.info(f"Results saved to: {output_path}")
+
+    # Return non-zero if validation rate is below threshold
+    if results["validation_rate"] < args.threshold:
+        logger.error(
+            f"Validation rate {results['validation_rate']:.1%} "
+            f"is below threshold {args.threshold:.1%}"
+        )
+        return 1
+
+    return 0
+
+
+def run_benchmark_agent(args: argparse.Namespace) -> int:
+    """Run benchmarks in agent mode using Claude via Anthropic API."""
+    from rhoai_mcp.benchmarks.agent import (
+        check_agent_prerequisites,
+        run_agent_benchmarks,
+    )
+    from rhoai_mcp.config import get_config
+
+    setup_logging(LogLevel.INFO)
+    logger = logging.getLogger(__name__)
+
+    config = get_config()
+
+    # Override config with CLI args
+    if args.model:
+        config = type(config).model_validate(
+            {**config.model_dump(), "anthropic_model": args.model}
+        )
+    if args.server_url:
+        config = type(config).model_validate(
+            {**config.model_dump(), "benchmark_server_url": args.server_url}
+        )
+
+    # Check prerequisites
+    ok, error = check_agent_prerequisites(config)
+    if not ok:
+        logger.error(f"Agent mode prerequisites not met: {error}")
+        return 1
+
+    logger.info("Running benchmarks in agent mode")
+    logger.info(f"Model: {config.anthropic_model}")
+    logger.info(f"Server URL: {config.benchmark_server_url}")
+    if args.quick:
+        logger.info("Quick mode: only running cases tagged 'quick'")
+
+    results = run_agent_benchmarks(
+        config=config,
+        quick_only=args.quick,
+        pass_threshold=args.threshold,
+    )
+
+    # Print summary
+    print("\n" + "=" * 60)
+    print("AGENT BENCHMARK RESULTS")
+    print("=" * 60)
+
+    total = results["total_cases"]
+    passed = results["passed_cases"]
+    rate = results["pass_rate"]
+
+    print(f"\nTotal Cases: {total}")
+    print(f"Passed: {passed}/{total} ({rate:.1%})")
+    print(f"Average Score: {results['average_score']:.2f}")
+    print(f"Grade: {results['grade']}")
+
+    # Show failures
+    failures = [r for r in results["results"] if not r["passed"]]
+    if failures:
+        print(f"\nFailed Cases ({len(failures)}):")
+        for f in failures:
+            print(f"  - {f['case_name']}: score={f.get('score', 'N/A')}")
+            if f.get("error"):
+                print(f"    Error: {f['error']}")
+
+    print("=" * 60)
+
+    # Save results if output specified
+    if args.output:
+        output_path = Path(args.output)
+        output_path.write_text(json.dumps(results, indent=2))
+        logger.info(f"Results saved to: {output_path}")
+
+    # Return non-zero if pass rate is below threshold
+    if rate < args.threshold:
+        logger.error(f"Pass rate {rate:.1%} is below threshold {args.threshold:.1%}")
+        return 1
+
+    return 0
+
+
+def run_benchmark(args: argparse.Namespace) -> int:
+    """Run benchmark command."""
+    from rhoai_mcp.benchmarks import (
+        get_all_cases,
+        get_quick_cases,
+    )
+
+    setup_logging(LogLevel.INFO)
 
     # List mode - just show available benchmarks
     if args.list_cases:
@@ -161,74 +302,15 @@ def run_benchmark(args: argparse.Namespace) -> int:
             print()
         return 0
 
-    # Get suites to run
-    if args.suite == "all":
-        suites = get_all_suites()
+    # Dispatch by mode
+    mode = getattr(args, "mode", "simulate")
+    if mode == "simulate":
+        return run_benchmark_simulate(args)
+    elif mode == "agent":
+        return run_benchmark_agent(args)
     else:
-        suite = get_suite(args.suite)
-        if not suite:
-            logger.error(f"Unknown suite: {args.suite}")
-            return 1
-        suites = [suite]
-
-    logger.info(f"Running benchmarks: {', '.join(s.name for s in suites)}")
-    if args.quick:
-        logger.info("Quick mode: only running cases tagged 'quick'")
-
-    # Create runner
-    runner = BenchmarkRunner(pass_threshold=args.threshold)
-
-    # Note: Without an actual agent executor, we just demonstrate the framework.
-    # In a real scenario, you would integrate with an agent that executes tasks.
-    def mock_executor(_prompt: str) -> list[dict[str, Any]]:
-        """Mock executor for demonstration - returns empty tool calls."""
-        logger.warning(
-            "Using mock executor. In production, integrate with an actual agent."
-        )
-        return []
-
-    # Run benchmarks
-    all_results = runner.run_all_suites(suites, mock_executor, quick_only=args.quick)
-
-    # Print summary
-    print("\n" + "=" * 60)
-    print("BENCHMARK RESULTS")
-    print("=" * 60)
-
-    total_passed = 0
-    total_failed = 0
-
-    for suite_name, results in all_results.items():
-        print(f"\n{suite_name.upper()} Suite:")
-        print(f"  Passed: {results.passed_cases}/{results.total_cases}")
-        print(f"  Pass Rate: {results.pass_rate:.1%}")
-        print(f"  Average Score: {results.average_score:.2f}")
-        print(f"  Grade: {results.grade}")
-
-        total_passed += results.passed_cases
-        total_failed += results.failed_cases
-
-    print("\n" + "-" * 60)
-    total = total_passed + total_failed
-    overall_rate = total_passed / total if total > 0 else 0
-    print(f"TOTAL: {total_passed}/{total} passed ({overall_rate:.1%})")
-    print("=" * 60)
-
-    # Save results if output specified
-    if args.output:
-        output_path = Path(args.output)
-        combined_results = {
-            name: results.to_dict() for name, results in all_results.items()
-        }
-        output_path.write_text(json.dumps(combined_results, indent=2))
-        logger.info(f"Results saved to: {output_path}")
-
-    # Return non-zero if any failures and below threshold
-    if overall_rate < args.threshold:
-        logger.error(f"Pass rate {overall_rate:.1%} is below threshold {args.threshold:.1%}")
+        print(f"Unknown mode: {mode}")
         return 1
-
-    return 0
 
 
 def main() -> int:
