@@ -207,13 +207,16 @@ class NodeResources(BaseModel):
     memory_total_gb: float = Field(0.0, description="Total memory in GB")
     memory_allocatable_gb: float = Field(0.0, description="Allocatable memory in GB")
     gpu_count: int = Field(0, description="Number of GPUs")
-    gpu_type: str | None = Field(None, description="GPU resource type label")
+    gpu_type: str | None = Field(None, description="GPU resource key (e.g., nvidia.com/gpu)")
+    gpu_product: str | None = Field(None, description="GPU product name (e.g., Tesla-T4)")
 
 
 class GPUInfo(BaseModel):
     """GPU availability information."""
 
-    type: str = Field(..., description="GPU resource type (e.g., nvidia.com/gpu)")
+    type: str = Field(..., description="GPU resource key (e.g., nvidia.com/gpu)")
+    product: str | None = Field(None, description="GPU product name (e.g., Tesla-T4)")
+    products: list[str] = Field(default_factory=list, description="All GPU products in cluster")
     total: int = Field(0, description="Total GPUs in cluster")
     available: int = Field(0, description="Available GPUs")
     nodes_with_gpu: int = Field(0, description="Number of nodes with GPUs")
