@@ -18,6 +18,31 @@ if TYPE_CHECKING:
     from rhoai_mcp.clients.base import K8sClient
 
 
+# GPU product label keys by GPU resource type
+GPU_PRODUCT_LABELS: dict[str, list[str]] = {
+    "nvidia.com/gpu": ["nvidia.com/gpu.product", "nvidia.com/gpu-product"],
+    "amd.com/gpu": ["amd.com/gpu.product", "amd.com/gpu-product"],
+}
+
+
+def _get_gpu_product(labels: dict[str, str] | None, gpu_resource_key: str) -> str | None:
+    """Extract GPU product name from node labels.
+
+    Args:
+        labels: Node labels dictionary.
+        gpu_resource_key: GPU resource key (e.g., "nvidia.com/gpu").
+
+    Returns:
+        GPU product name (e.g., "Tesla-T4") or None if not found.
+    """
+    if not labels:
+        return None
+    for key in GPU_PRODUCT_LABELS.get(gpu_resource_key, []):
+        if key in labels:
+            return labels[key]
+    return None
+
+
 class TrainingClient:
     """Client for Kubeflow Training Operator operations."""
 
@@ -334,11 +359,13 @@ class TrainingClient:
         gpu_total = 0
         gpu_nodes = 0
         gpu_type = None
+        gpu_products: list[str] = []
         node_resources = []
 
         for node in nodes.items:
             capacity = node.status.capacity or {}
             allocatable = node.status.allocatable or {}
+            node_labels = node.metadata.labels or {}
 
             cpu = _parse_cpu(capacity.get("cpu", "0"))
             cpu_alloc = _parse_cpu(allocatable.get("cpu", "0"))
@@ -352,13 +379,20 @@ class TrainingClient:
 
             # Check for GPUs
             node_gpus = 0
+            node_gpu_type = None
+            node_gpu_product = None
             for key in ["nvidia.com/gpu", "amd.com/gpu"]:
                 if key in capacity:
                     node_gpus = int(capacity[key])
                     if node_gpus > 0:
+                        node_gpu_type = key
                         gpu_type = key
                         gpu_total += node_gpus
                         gpu_nodes += 1
+                        # Extract GPU product from node labels
+                        node_gpu_product = _get_gpu_product(node_labels, key)
+                        if node_gpu_product and node_gpu_product not in gpu_products:
+                            gpu_products.append(node_gpu_product)
                         break
 
             node_resources.append(
@@ -369,7 +403,8 @@ class TrainingClient:
                     memory_total_gb=memory,
                     memory_allocatable_gb=memory_alloc,
                     gpu_count=node_gpus,
-                    gpu_type=gpu_type if node_gpus > 0 else None,
+                    gpu_type=node_gpu_type,
+                    gpu_product=node_gpu_product,
                 )
             )
 
@@ -377,6 +412,8 @@ class TrainingClient:
         if gpu_total > 0 and gpu_type:
             gpu_info = GPUInfo(
                 type=gpu_type,
+                product=gpu_products[0] if gpu_products else None,
+                products=gpu_products,
                 total=gpu_total,
                 available=gpu_total,  # Simplified; real impl would check allocations
                 nodes_with_gpu=gpu_nodes,

@@ -114,6 +114,8 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         if resources.gpu_info:
             result["gpu_info"] = {
                 "type": resources.gpu_info.type,
+                "product": resources.gpu_info.product,
+                "products": resources.gpu_info.products,
                 "total": resources.gpu_info.total,
                 "available": resources.gpu_info.available,
                 "nodes_with_gpu": resources.gpu_info.nodes_with_gpu,
@@ -126,6 +128,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                 "cpu": node.cpu_allocatable,
                 "memory_gb": round(node.memory_allocatable_gb, 1),
                 "gpus": node.gpu_count,
+                "gpu_product": node.gpu_product,
             }
             for node in resources.nodes
         ]
