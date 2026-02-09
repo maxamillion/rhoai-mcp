@@ -181,6 +181,70 @@ export RHOAI_MCP_READ_ONLY_MODE=true
 | **RBAC-Aware** | Uses OpenShift Projects API to respect user permissions | Always |
 | **Auth Validation** | Validates authentication configuration at startup | Always |
 
+### Small Model Optimization
+
+When using smaller language models (7B-20B parameters), the full tool set (~50+ tools) can overwhelm the model's context window and degrade performance. The Small Model Optimizer dynamically filters tools to expose only the most relevant ones.
+
+#### How It Works
+
+1. **Pinned tools** (`suggest_tools`, `list_tool_categories`) are always visible for discovery
+2. **Semantic search** uses ToolScope to find tools matching conversation context
+3. **Context tracking** remembers recent queries to improve relevance over time
+4. Agents can always discover all tools via `suggest_tools()`, even when filtering is active
+
+#### Optimization Modes
+
+| Mode | Tools Exposed | Use Case |
+|------|---------------|----------|
+| `none` | All (~50+) | Large models (GPT-4, Claude, 70B+) |
+| `moderate` | ~10 | Medium models (20-70B) |
+| `aggressive` | ~5 | Small models (7-20B) |
+| `minimal` | 2-3 | Very small models (<7B), meta-tools only |
+
+#### Configuration
+
+```bash
+# Enable moderate filtering (recommended for smaller models)
+export RHOAI_MCP_SMALL_MODEL_MODE=moderate
+
+# Customize maximum tools (default: 10)
+export RHOAI_MCP_SMALL_MODEL_MAX_TOOLS=8
+
+# Tools always visible regardless of filtering
+export RHOAI_MCP_SMALL_MODEL_PINNED_TOOLS='["suggest_tools", "list_tool_categories"]'
+
+# Number of recent queries to consider for relevance (default: 5)
+export RHOAI_MCP_SMALL_MODEL_CONTEXT_SIZE=5
+```
+
+#### Example: Claude Code with Small Model
+
+```json
+{
+  "mcpServers": {
+    "rhoai": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/rhoai-mcp", "rhoai-mcp"],
+      "env": {
+        "RHOAI_MCP_KUBECONFIG_PATH": "/home/user/.kube/config",
+        "RHOAI_MCP_SMALL_MODEL_MODE": "moderate",
+        "RHOAI_MCP_SMALL_MODEL_MAX_TOOLS": "10"
+      }
+    }
+  }
+}
+```
+
+#### All Small Model Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RHOAI_MCP_SMALL_MODEL_MODE` | Filtering mode: `none`, `moderate`, `aggressive`, `minimal` | `none` |
+| `RHOAI_MCP_SMALL_MODEL_MAX_TOOLS` | Maximum tools when filtering enabled (1-50) | `10` |
+| `RHOAI_MCP_SMALL_MODEL_PINNED_TOOLS` | JSON array of always-visible tools | `["suggest_tools", "list_tool_categories"]` |
+| `RHOAI_MCP_SMALL_MODEL_CONTEXT_SIZE` | Recent queries for context (1-20) | `5` |
+| `RHOAI_MCP_SMALL_MODEL_COMPRESS_SCHEMAS` | Strip optional params from schemas | `false` |
+
 ### Model Registry
 
 The MCP server integrates with the RHOAI Model Registry to list and query registered models. By default, it auto-discovers the Model Registry service in the cluster.
