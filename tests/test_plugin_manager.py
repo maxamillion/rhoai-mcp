@@ -241,9 +241,9 @@ class TestPluginManager:
         pm = PluginManager()
         count = pm.load_core_plugins()
 
-        # Should load 9 core domain plugins + 3 composite plugins = 12 total
-        assert count == 12
-        assert len(pm.registered_plugins) == 12
+        # Should load 9 core domain plugins + 4 composite plugins = 13 total
+        assert count == 13
+        assert len(pm.registered_plugins) == 13
 
         # Verify expected plugins are loaded
         # Core domain plugins (9)
@@ -258,11 +258,12 @@ class TestPluginManager:
             "prompts",
             "model_registry",
         }
-        # Composite plugins (3)
+        # Composite plugins (4)
         expected_composites = {
             "cluster-composites",
             "training-composites",
             "meta-composites",
+            "toolscope",
         }
         expected = expected_domains | expected_composites
         assert set(pm.registered_plugins.keys()) == expected

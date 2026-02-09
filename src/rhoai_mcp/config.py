@@ -49,6 +49,14 @@ class ModelRegistryAuthMode(str, Enum):
     TOKEN = "token"  # Use explicit bearer token
 
 
+class ToolScopeEmbedderType(str, Enum):
+    """Embedder type for ToolScope semantic search."""
+
+    SENTENCE_TRANSFORMERS = "sentence-transformers"
+    HTTP = "http"
+    DISABLED = "disabled"
+
+
 class RHOAIConfig(BaseSettings):
     """Configuration for RHOAI MCP server.
 
@@ -187,6 +195,30 @@ class RHOAIConfig(BaseSettings):
     model_registry_skip_tls_verify: bool = Field(
         default=False,
         description="Skip TLS certificate verification for Model Registry (not recommended for production)",
+    )
+
+    # ToolScope semantic search settings
+    toolscope_enabled: bool = Field(
+        default=True,
+        description="Enable semantic tool search with ToolScope",
+    )
+    toolscope_embedder_type: ToolScopeEmbedderType = Field(
+        default=ToolScopeEmbedderType.SENTENCE_TRANSFORMERS,
+        description="Embedder type: sentence-transformers, http, or disabled",
+    )
+    toolscope_embedder_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="Embedding model name for sentence-transformers",
+    )
+    toolscope_embedder_url: str | None = Field(
+        default=None,
+        description="HTTP endpoint URL for embeddings (when type is 'http')",
+    )
+    toolscope_default_k: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Default number of tools to return from semantic search",
     )
 
     @field_validator("kubeconfig_path", mode="before")

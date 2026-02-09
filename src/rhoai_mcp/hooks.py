@@ -157,3 +157,15 @@ class RHOAIMCPHookSpec:
             error: Error message if the tool raised an exception.
             session_id: Active evaluation session ID, if any.
         """
+
+    @hookspec
+    def rhoai_post_registration(self, mcp: FastMCP, server: RHOAIServer) -> None:
+        """Called after all tools, resources, and prompts are registered.
+
+        Use this for initialization that requires the complete tool set,
+        such as building semantic search indexes.
+
+        Args:
+            mcp: The FastMCP server instance with all tools registered.
+            server: The RHOAI server instance.
+        """

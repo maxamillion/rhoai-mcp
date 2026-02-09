@@ -166,6 +166,9 @@ class RHOAIServer:
         self._plugin_manager.register_all_resources(mcp, self)
         self._plugin_manager.register_all_prompts(mcp, self)
 
+        # Call post-registration hooks (for ToolScope index building, etc.)
+        self._plugin_manager.call_post_registration(mcp, self)
+
         # Register core resources (cluster status, etc.)
         self._register_core_resources(mcp)
 

@@ -226,3 +226,17 @@ class PluginManager:
             if crd_list:
                 all_crds.extend(crd_list)
         return all_crds
+
+    def call_post_registration(self, mcp: FastMCP, server: RHOAIServer) -> None:
+        """Call post-registration hooks on all plugins.
+
+        This is called after all tools, resources, and prompts are registered,
+        allowing plugins to perform initialization that requires the complete
+        tool set (e.g., building semantic search indexes).
+
+        Args:
+            mcp: The FastMCP server instance with all tools registered.
+            server: The RHOAI server instance.
+        """
+        self.hook.rhoai_post_registration(mcp=mcp, server=server)
+        logger.info("Called post-registration hooks")

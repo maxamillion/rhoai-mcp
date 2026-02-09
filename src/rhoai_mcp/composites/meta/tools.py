@@ -1,5 +1,7 @@
 """MCP Tools for tool discovery and workflow guidance."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
@@ -135,7 +137,87 @@ INTENT_PATTERNS = [
 DISCOVERY_PATTERN = next(p for p in INTENT_PATTERNS if p["category"] == "discovery")
 
 
-def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:  # noqa: ARG001
+def _get_toolscope_manager(server: RHOAIServer) -> Any:
+    """Get ToolScope manager from plugin registry."""
+    try:
+        from rhoai_mcp.composites.toolscope.plugin import ToolScopePlugin
+
+        for plugin in server.plugins.values():
+            if isinstance(plugin, ToolScopePlugin) and plugin.manager:
+                return plugin.manager
+    except ImportError:
+        pass
+    return None
+
+
+def _build_example_calls(workflow: list[str], context: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build example tool calls for a workflow."""
+    namespace = context.get("namespace", "my-project")
+    resource_name = context.get("resource_name", "my-resource")
+
+    example_calls: list[dict[str, Any]] = []
+    for tool in workflow:
+        if tool == "prepare_training":
+            example_calls.append({
+                "tool": tool,
+                "args": {
+                    "namespace": namespace,
+                    "model_id": "meta-llama/Llama-2-7b-hf",
+                    "dataset_id": "tatsu-lab/alpaca",
+                },
+            })
+        elif tool == "train":
+            example_calls.append({
+                "tool": tool,
+                "args": {
+                    "namespace": namespace,
+                    "model_id": "meta-llama/Llama-2-7b-hf",
+                    "confirmed": True,
+                },
+            })
+        elif tool == "prepare_model_deployment":
+            example_calls.append({
+                "tool": tool,
+                "args": {
+                    "namespace": namespace,
+                    "model_id": "meta-llama/Llama-2-7b-hf",
+                },
+            })
+        elif tool == "deploy_model":
+            example_calls.append({
+                "tool": tool,
+                "args": {
+                    "namespace": namespace,
+                    "name": "my-model",
+                    "runtime": "vllm-runtime",
+                    "model_format": "pytorch",
+                    "storage_uri": "pvc://model-storage/model",
+                },
+            })
+        elif tool == "diagnose_resource":
+            example_calls.append({
+                "tool": tool,
+                "args": {
+                    "resource_type": "training_job",
+                    "name": resource_name,
+                    "namespace": namespace,
+                },
+            })
+        elif tool == "explore_cluster":
+            example_calls.append({
+                "tool": tool,
+                "args": {},
+            })
+        else:
+            example_calls.append({
+                "tool": tool,
+                "args": {"namespace": namespace},
+            })
+
+    return example_calls
+
+
+def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register meta tools with the MCP server."""
 
     @mcp.tool()
@@ -145,30 +227,57 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:  # noqa: ARG001
     ) -> dict[str, Any]:
         """Get recommended tools and workflow for a given intent.
 
-        Given a natural language description of what you want to do,
-        returns the recommended tools and typical workflow steps.
+        Uses semantic search (when ToolScope is enabled) or keyword matching
+        to find the most relevant tools for your task.
 
         Args:
             intent: What you want to do (e.g., "train a model", "debug failed job").
             context: Optional context like {"namespace": "...", "resource_name": "..."}.
 
         Returns:
-            Recommended tools with:
-            - workflow: List of tools to use in order
-            - explanation: How to use them
-            - example_calls: Example tool invocations
-            - category: Tool category this matches
-
-        Example intents:
-            - "train llama on my dataset"
-            - "check why my training job failed"
-            - "deploy a model for inference"
-            - "see what's running in my cluster"
+            Recommended tools with workflow, explanation, and example calls.
         """
-        intent_lower = intent.lower()
         context = context or {}
+        manager = _get_toolscope_manager(server)
 
-        # Find matching pattern
+        # Try semantic search first
+        if manager and manager.is_initialized:
+            matches = manager.search(intent, k=5)
+            if matches:
+                workflow = [m.name for m in matches[:3]]
+                category = matches[0].category if matches else "discovery"
+
+                # Build explanation
+                explanation = (
+                    f"Based on semantic search for '{intent}', these tools are most relevant. "
+                )
+                if category in TOOL_CATEGORIES:
+                    cat_info = TOOL_CATEGORIES[category]
+                    if "typical_workflow" in cat_info:
+                        explanation += (
+                            f"Typical workflow: {' -> '.join(cat_info['typical_workflow'])}"
+                        )
+
+                return {
+                    "intent": intent,
+                    "category": category,
+                    "workflow": workflow,
+                    "explanation": explanation,
+                    "search_method": "semantic",
+                    "matches": [
+                        {
+                            "name": m.name,
+                            "score": round(m.score, 3),
+                            "description": m.description[:100],
+                        }
+                        for m in matches
+                    ],
+                    "example_calls": _build_example_calls(workflow, context),
+                    "all_categories": list(TOOL_CATEGORIES.keys()),
+                }
+
+        # Fallback to keyword matching
+        intent_lower = intent.lower()
         best_match = None
         match_score = 0
 
@@ -179,94 +288,15 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:  # noqa: ARG001
                 best_match = pattern
 
         if not best_match:
-            # Default to discovery
             best_match = DISCOVERY_PATTERN
-
-        # Build example calls
-        example_calls = []
-        namespace = context.get("namespace", "my-project")
-        resource_name = context.get("resource_name", "my-resource")
-
-        for tool in best_match["workflow"]:
-            if tool == "prepare_training":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {
-                            "namespace": namespace,
-                            "model_id": "meta-llama/Llama-2-7b-hf",
-                            "dataset_id": "tatsu-lab/alpaca",
-                        },
-                    }
-                )
-            elif tool == "train":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {
-                            "namespace": namespace,
-                            "model_id": "meta-llama/Llama-2-7b-hf",
-                            "dataset_id": "tatsu-lab/alpaca",
-                            "runtime_name": "mcp-transformers-runtime",
-                            "confirmed": True,
-                        },
-                    }
-                )
-            elif tool == "prepare_model_deployment":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {
-                            "namespace": namespace,
-                            "model_id": "meta-llama/Llama-2-7b-hf",
-                        },
-                    }
-                )
-            elif tool == "deploy_model":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {
-                            "namespace": namespace,
-                            "name": "my-model",
-                            "runtime": "vllm-runtime",
-                            "model_format": "pytorch",
-                            "storage_uri": "pvc://model-storage/model",
-                        },
-                    }
-                )
-            elif tool == "diagnose_resource":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {
-                            "resource_type": "training_job",
-                            "name": resource_name,
-                            "namespace": namespace,
-                        },
-                    }
-                )
-            elif tool == "explore_cluster":
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {},
-                    }
-                )
-            else:
-                example_calls.append(
-                    {
-                        "tool": tool,
-                        "args": {"namespace": namespace},
-                    }
-                )
 
         return {
             "intent": intent,
             "category": best_match["category"],
             "workflow": best_match["workflow"],
             "explanation": best_match["explanation"],
-            "example_calls": example_calls,
+            "search_method": "keyword",
+            "example_calls": _build_example_calls(list(best_match["workflow"]), context),
             "all_categories": list(TOOL_CATEGORIES.keys()),
         }
 

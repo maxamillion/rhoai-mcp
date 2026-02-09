@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rhoai_mcp.composites.toolscope.plugin import ToolScopePlugin
 from rhoai_mcp.hooks import hookimpl
 from rhoai_mcp.plugin import BasePlugin, PluginMetadata
 
@@ -125,4 +126,5 @@ def get_composite_plugins() -> list[BasePlugin]:
         ClusterCompositesPlugin(),
         TrainingCompositesPlugin(),
         MetaCompositesPlugin(),
+        ToolScopePlugin(),
     ]
