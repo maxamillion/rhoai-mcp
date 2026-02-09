@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from rhoai_mcp.composites.optimizer.manager import SmallModelOptimizer
 from rhoai_mcp.config import SmallModelMode
 from rhoai_mcp.hooks import hookimpl
 from rhoai_mcp.plugin import BasePlugin, PluginMetadata
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -42,7 +45,18 @@ class SmallModelOptimizerPlugin(BasePlugin):
     @hookimpl
     def rhoai_post_registration(self, mcp: FastMCP, server: RHOAIServer) -> None:
         """Install optimizer after all tools registered."""
+        # Count total tools for logging
+        tool_count = 0
+        if hasattr(mcp, "_tool_manager"):
+            tool_count = len(list(mcp._tool_manager.list_tools()))
+
         if server.config.small_model_mode == SmallModelMode.NONE:
+            logger.warning(
+                "Small model optimization DISABLED - all %d tools exposed to MCP clients. "
+                "For smaller LLMs, set RHOAI_MCP_SMALL_MODEL_MODE=moderate to reduce "
+                "context usage by filtering to ~10 relevant tools.",
+                tool_count,
+            )
             return
 
         # Get ToolScope manager
@@ -50,6 +64,13 @@ class SmallModelOptimizerPlugin(BasePlugin):
 
         self._optimizer = SmallModelOptimizer(server.config, toolscope_manager)
         self._optimizer.install(mcp)
+
+        logger.info(
+            "Small model optimization ENABLED (mode=%s) - filtering %d tools down to %d max",
+            server.config.small_model_mode.value,
+            tool_count,
+            server.config.small_model_max_tools,
+        )
 
     def _get_toolscope_manager(self, server: RHOAIServer) -> Any:
         """Get ToolScope manager from plugins."""
