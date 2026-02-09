@@ -8,6 +8,7 @@ from rhoai_mcp.config import (
     AuthMode,
     TransportMode,
     LogLevel,
+    SmallModelMode,
 )
 
 
@@ -118,3 +119,63 @@ class TestRHOAIConfig:
         config = RHOAIConfig()
         assert config.log_level == LogLevel.DEBUG
         assert config.port == 9000
+
+
+class TestSmallModelConfig:
+    """Tests for small model optimization configuration."""
+
+    def test_default_small_model_mode(self):
+        """Test default small model mode is NONE."""
+        config = RHOAIConfig()
+        assert config.small_model_mode == SmallModelMode.NONE
+
+    def test_small_model_mode_from_env(self, monkeypatch):
+        """Test small model mode from environment variable."""
+        monkeypatch.setenv("RHOAI_MCP_SMALL_MODEL_MODE", "aggressive")
+        config = RHOAIConfig()
+        assert config.small_model_mode == SmallModelMode.AGGRESSIVE
+
+    def test_small_model_mode_moderate(self, monkeypatch):
+        """Test moderate small model mode."""
+        monkeypatch.setenv("RHOAI_MCP_SMALL_MODEL_MODE", "moderate")
+        config = RHOAIConfig()
+        assert config.small_model_mode == SmallModelMode.MODERATE
+
+    def test_small_model_mode_minimal(self, monkeypatch):
+        """Test minimal small model mode."""
+        monkeypatch.setenv("RHOAI_MCP_SMALL_MODEL_MODE", "minimal")
+        config = RHOAIConfig()
+        assert config.small_model_mode == SmallModelMode.MINIMAL
+
+    def test_small_model_max_tools_default(self):
+        """Test default max tools value."""
+        config = RHOAIConfig()
+        assert config.small_model_max_tools == 10
+
+    def test_small_model_max_tools_from_env(self, monkeypatch):
+        """Test max tools from environment variable."""
+        monkeypatch.setenv("RHOAI_MCP_SMALL_MODEL_MAX_TOOLS", "5")
+        config = RHOAIConfig()
+        assert config.small_model_max_tools == 5
+
+    def test_small_model_pinned_tools_default(self):
+        """Test default pinned tools."""
+        config = RHOAIConfig()
+        assert "suggest_tools" in config.small_model_pinned_tools
+        assert "list_tool_categories" in config.small_model_pinned_tools
+
+    def test_small_model_compress_schemas_default(self):
+        """Test default compress schemas is False."""
+        config = RHOAIConfig()
+        assert config.small_model_compress_schemas is False
+
+    def test_small_model_context_size_default(self):
+        """Test default context size."""
+        config = RHOAIConfig()
+        assert config.small_model_context_size == 5
+
+    def test_small_model_context_size_from_env(self, monkeypatch):
+        """Test context size from environment variable."""
+        monkeypatch.setenv("RHOAI_MCP_SMALL_MODEL_CONTEXT_SIZE", "10")
+        config = RHOAIConfig()
+        assert config.small_model_context_size == 10

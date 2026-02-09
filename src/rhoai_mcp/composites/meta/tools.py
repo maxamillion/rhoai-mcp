@@ -150,6 +150,19 @@ def _get_toolscope_manager(server: RHOAIServer) -> Any:
     return None
 
 
+def _record_optimizer_context(server: RHOAIServer, query: str) -> None:
+    """Record query for small model optimizer context tracking."""
+    try:
+        from rhoai_mcp.composites.optimizer.plugin import SmallModelOptimizerPlugin
+
+        for plugin in server.plugins.values():
+            if isinstance(plugin, SmallModelOptimizerPlugin) and plugin.optimizer:
+                plugin.optimizer.record_context(query)
+                break
+    except ImportError:
+        pass
+
+
 def _build_example_calls(workflow: list[str], context: dict[str, Any]) -> list[dict[str, Any]]:
     """Build example tool calls for a workflow."""
     namespace = context.get("namespace", "my-project")
@@ -224,20 +237,31 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     def suggest_tools(
         intent: str,
         context: dict[str, Any] | None = None,
+        show_all: bool = False,  # noqa: ARG001
     ) -> dict[str, Any]:
         """Get recommended tools and workflow for a given intent.
 
         Uses semantic search (when ToolScope is enabled) or keyword matching
         to find the most relevant tools for your task.
 
+        When small_model_mode is enabled, this tool can discover tools not
+        currently visible in the filtered list. Calling this updates the
+        context, which may cause related tools to appear in subsequent
+        tools/list calls.
+
         Args:
             intent: What you want to do (e.g., "train a model", "debug failed job").
             context: Optional context like {"namespace": "...", "resource_name": "..."}.
+            show_all: If True, searches all tools regardless of current filtering.
 
         Returns:
             Recommended tools with workflow, explanation, and example calls.
         """
         context = context or {}
+
+        # Record context for small model optimizer
+        _record_optimizer_context(server, intent)
+
         manager = _get_toolscope_manager(server)
 
         # Try semantic search first

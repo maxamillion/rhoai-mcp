@@ -57,6 +57,19 @@ class ToolScopeEmbedderType(str, Enum):
     DISABLED = "disabled"
 
 
+class SmallModelMode(str, Enum):
+    """Optimization level for small language models.
+
+    Controls tool filtering to reduce context usage for smaller LLMs
+    that struggle with large tool sets.
+    """
+
+    NONE = "none"  # No filtering, expose all tools (default)
+    MODERATE = "moderate"  # Limit to ~10 most relevant tools
+    AGGRESSIVE = "aggressive"  # Limit to ~5 most relevant tools
+    MINIMAL = "minimal"  # Only meta-tools (suggest_tools, list_tool_categories)
+
+
 class RHOAIConfig(BaseSettings):
     """Configuration for RHOAI MCP server.
 
@@ -219,6 +232,32 @@ class RHOAIConfig(BaseSettings):
         ge=1,
         le=20,
         description="Default number of tools to return from semantic search",
+    )
+
+    # Small model optimization settings
+    small_model_mode: SmallModelMode = Field(
+        default=SmallModelMode.NONE,
+        description="Tool filtering mode for small LLMs: none, moderate, aggressive, minimal",
+    )
+    small_model_max_tools: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum tools to expose when small_model_mode is enabled",
+    )
+    small_model_pinned_tools: list[str] = Field(
+        default=["suggest_tools", "list_tool_categories"],
+        description="Tools always visible regardless of filtering",
+    )
+    small_model_compress_schemas: bool = Field(
+        default=False,
+        description="Strip optional parameters from tool schemas",
+    )
+    small_model_context_size: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Number of recent queries to consider for relevance",
     )
 
     @field_validator("kubeconfig_path", mode="before")
