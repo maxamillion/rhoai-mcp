@@ -185,6 +185,21 @@ export RHOAI_MCP_READ_ONLY_MODE=true
 
 When using smaller language models (7B-20B parameters), the full tool set (~50+ tools) can overwhelm the model's context window and degrade performance. The Small Model Optimizer dynamically filters tools to expose only the most relevant ones.
 
+#### Important: Claude Code Has Built-in Optimization
+
+**Claude Code and Claude Desktop already optimize tool loading automatically.** When an MCP server exposes many tools, Claude Code uses "on-demand loading" - tools appear as `MCP tools * /mcp (loaded on-demand)` and don't consume context tokens until needed.
+
+**Do NOT enable Small Model Optimization for Claude Code.** Enabling it can actually *increase* context usage because:
+- With 50+ tools → Claude Code uses on-demand loading → ~0 tokens
+- With 5-10 filtered tools → Claude Code loads them all upfront → ~1K tokens
+
+#### When to Use This Feature
+
+Enable Small Model Optimization only for:
+- **MCP clients without on-demand loading** that load all tools into context
+- **Local/small models** (7B-20B) that need a reduced tool set to function properly
+- **Custom integrations** where you want explicit control over visible tools
+
 #### How It Works
 
 1. **Pinned tools** (`suggest_tools`, `list_tool_categories`) are always visible for discovery
@@ -196,15 +211,15 @@ When using smaller language models (7B-20B parameters), the full tool set (~50+ 
 
 | Mode | Tools Exposed | Use Case |
 |------|---------------|----------|
-| `none` | All (~50+) | Large models (GPT-4, Claude, 70B+) |
-| `moderate` | ~10 | Medium models (20-70B) |
-| `aggressive` | ~5 | Small models (7-20B) |
+| `none` | All (~50+) | Default - for Claude Code and large models |
+| `moderate` | ~10 | Medium models (20-70B) without on-demand loading |
+| `aggressive` | ~5 | Small models (7-20B) without on-demand loading |
 | `minimal` | 2-3 | Very small models (<7B), meta-tools only |
 
 #### Configuration
 
 ```bash
-# Enable moderate filtering (recommended for smaller models)
+# Enable moderate filtering (only for clients without on-demand loading)
 export RHOAI_MCP_SMALL_MODEL_MODE=moderate
 
 # Customize maximum tools (default: 10)
@@ -215,24 +230,6 @@ export RHOAI_MCP_SMALL_MODEL_PINNED_TOOLS='["suggest_tools", "list_tool_categori
 
 # Number of recent queries to consider for relevance (default: 5)
 export RHOAI_MCP_SMALL_MODEL_CONTEXT_SIZE=5
-```
-
-#### Example: Claude Code with Small Model
-
-```json
-{
-  "mcpServers": {
-    "rhoai": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/rhoai-mcp", "rhoai-mcp"],
-      "env": {
-        "RHOAI_MCP_KUBECONFIG_PATH": "/home/user/.kube/config",
-        "RHOAI_MCP_SMALL_MODEL_MODE": "moderate",
-        "RHOAI_MCP_SMALL_MODEL_MAX_TOOLS": "10"
-      }
-    }
-  }
-}
 ```
 
 #### All Small Model Settings
