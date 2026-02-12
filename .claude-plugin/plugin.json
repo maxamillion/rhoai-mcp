@@ -1,0 +1,7 @@
+{
+  "name": "rhoai",
+  "version": "0.1.0",
+  "description": "Red Hat OpenShift AI - manage workbenches, model serving, pipelines, training, and data connections",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

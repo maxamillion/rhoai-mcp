@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RHOAI MCP Server is an MCP (Model Context Protocol) server that enables AI agents to interact with Red Hat OpenShift AI (RHOAI) environments. It provides programmatic access to RHOAI features (projects, workbenches, model serving, pipelines, data connections, storage, training) through domain modules, plus workflow prompts that guide agents through multi-step operations.
+RHOAI MCP Server is a hybrid Claude Code Plugin and MCP (Model Context Protocol) server that enables AI agents to interact with Red Hat OpenShift AI (RHOAI) environments. It provides:
+
+- **Agent Skills** (`skills/`) -- markdown-based workflow guidance for training, deployment, exploration, and troubleshooting that Claude discovers contextually
+- **MCP Tools** -- Kubernetes CRUD operations, monitoring, and value-add summaries exposed via MCP
+- **Fallback Tool** (`get_workflow_guide`) -- serves skill content to MCP-only clients without skill support
 
 ## Build and Development Commands
 
@@ -21,6 +25,7 @@ uv run rhoai-mcp --transport sse # HTTP transport
 make test                        # All tests
 make test-unit                   # Unit tests only (tests/training)
 make test-integration            # Integration tests (tests/integration)
+make test-skills                 # Skill format validation tests
 
 # Code quality
 make lint                        # ruff check
@@ -41,6 +46,16 @@ make run-dev                     # Debug logging + dangerous ops enabled
 
 ```
 rhoai-mcp/
+├── .claude-plugin/
+│   └── plugin.json              # Claude Code Plugin manifest
+├── .mcp.json                    # MCP server config for plugin mode
+├── skills/                      # Agent Skills (21 workflow guides)
+│   ├── train-model/             # Fine-tune a model with LoRA/QLoRA
+│   ├── deploy-model/            # Deploy model for inference
+│   ├── explore-cluster/         # Discover cluster resources
+│   ├── troubleshoot-training/   # Diagnose training issues
+│   ├── ...                      # 17 more skills
+│   └── diagnose-resource/       # Comprehensive resource diagnostics
 ├── src/
 │   └── rhoai_mcp/               # Main package
 │       ├── __init__.py
@@ -52,7 +67,7 @@ rhoai-mcp/
 │       ├── plugin_manager.py    # Plugin lifecycle management
 │       ├── clients/             # K8s client abstractions
 │       ├── models/              # Shared Pydantic models
-│       ├── utils/               # Helper functions
+│       ├── utils/               # Helper functions + skill_loader
 │       ├── domains/             # Domain modules (pure CRUD operations)
 │       │   ├── projects/        # Data Science Project management
 │       │   ├── notebooks/       # Kubeflow Notebook/Workbench
@@ -62,12 +77,11 @@ rhoai-mcp/
 │       │   ├── storage/         # PersistentVolumeClaim
 │       │   ├── training/        # Kubeflow Training Operator
 │       │   ├── evaluation/      # Model evaluation jobs
-│       │   ├── prompts/         # MCP workflow prompts (18 prompts)
-│       │   └── registry.py      # Domain plugin registry (9 plugins)
+│       │   └── registry.py      # Domain plugin registry (8 plugins)
 │       └── composites/          # Cross-cutting composite tools
-│           ├── cluster/         # Cluster summaries and exploration
-│           ├── training/        # Training workflow orchestration
-│           ├── meta/            # Tool discovery and guidance
+│           ├── cluster/         # Cluster summaries and status
+│           ├── training/        # Training validators and storage
+│           ├── fallback/        # get_workflow_guide for MCP-only clients
 │           └── registry.py      # Composite plugin registry (3 plugins)
 ├── tests/                       # Test suite
 ├── docs/                        # Documentation
@@ -75,7 +89,7 @@ rhoai-mcp/
 └── Containerfile                # Container build
 ```
 
-**Domains vs Composites**: Domain modules provide CRUD operations for specific Kubernetes resource types. Composite modules provide cross-cutting tools that orchestrate multiple domains (e.g., `prepare_training` validates storage, credentials, and runtime before creating a training job).
+**Architecture**: Domain modules provide CRUD operations for Kubernetes resources. Composite modules provide value-add summaries and validators. Agent Skills provide multi-step workflow guidance as markdown instructions. The `get_workflow_guide` fallback tool serves skill content to MCP-only clients.
 
 ### Domain Module Structure
 
@@ -87,8 +101,7 @@ domains/<name>/
 ├── models.py            # Pydantic models
 ├── tools.py             # MCP tool implementations
 ├── crds.py              # CRD definitions (if applicable)
-├── resources.py         # MCP resources (if applicable)
-└── prompts.py           # MCP prompts (if applicable)
+└── resources.py         # MCP resources (if applicable)
 ```
 
 The domain registry (`domains/registry.py`) defines all domains and provides them to the server for registration.
@@ -98,9 +111,23 @@ The domain registry (`domains/registry.py`) defines all domains and provides the
 Plugins can implement these hooks (defined in `hooks.py`):
 - `rhoai_register_tools`: Register MCP tools
 - `rhoai_register_resources`: Register MCP resources
-- `rhoai_register_prompts`: Register MCP prompts
 - `rhoai_get_crd_definitions`: Return CRD definitions
 - `rhoai_health_check`: Check plugin health
+
+### Claude Code Plugin
+
+This repo also works as a Claude Code Plugin via `.claude-plugin/plugin.json`. In plugin mode:
+- **Skills** in `skills/` are auto-discovered by description matching (user-invocable skills available via `/rhoai:` prefix)
+- **MCP tools** are started via the `.mcp.json` config
+- The `get_workflow_guide` MCP tool provides a fallback for MCP-only clients to access skill content
+
+#### Available Skills (21 total)
+- **Training**: `train-model`, `monitor-training`, `resume-training`
+- **Deployment**: `deploy-model`, `deploy-llm`, `test-endpoint`, `scale-model`
+- **Exploration**: `explore-cluster`, `explore-project`, `find-gpus`, `whats-running`
+- **Troubleshooting**: `troubleshoot-training`, `troubleshoot-workbench`, `troubleshoot-model`, `analyze-oom`
+- **Project Setup**: `setup-training-project`, `setup-inference-project`, `add-data-connection`
+- **Auto-discovered** (not user-invocable): `prepare-training`, `prepare-deployment`, `diagnose-resource`
 
 ### Configuration
 

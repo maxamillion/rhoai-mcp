@@ -211,36 +211,6 @@ class TrainingPlugin(BasePlugin):
         return TrainingCRDs.all_crds()
 
 
-class PromptsPlugin(BasePlugin):
-    """Plugin for MCP workflow prompts.
-
-    Provides prompts that guide AI agents through multi-step workflows
-    for training, exploration, troubleshooting, project setup, and
-    model deployment.
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            PluginMetadata(
-                name="prompts",
-                version="1.0.0",
-                description="MCP workflow prompts for RHOAI operations",
-                maintainer="rhoai-mcp@redhat.com",
-                requires_crds=[],
-            )
-        )
-
-    @hookimpl
-    def rhoai_register_prompts(self, mcp: FastMCP, server: RHOAIServer) -> None:
-        from rhoai_mcp.domains.prompts.prompts import register_prompts
-
-        register_prompts(mcp, server)
-
-    @hookimpl
-    def rhoai_health_check(self, server: RHOAIServer) -> tuple[bool, str]:  # noqa: ARG002
-        return True, "Prompts require no external dependencies"
-
-
 class ModelRegistryPlugin(BasePlugin):
     """Plugin for Model Registry integration.
 
@@ -341,6 +311,5 @@ def get_core_plugins() -> list[BasePlugin]:
         ConnectionsPlugin(),
         StoragePlugin(),
         TrainingPlugin(),
-        PromptsPlugin(),
         ModelRegistryPlugin(),
     ]

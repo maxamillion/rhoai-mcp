@@ -75,6 +75,9 @@ test-unit: ## Run unit tests only (training domain)
 test-integration: ## Run integration tests only
 	uv run pytest tests/integration -v
 
+test-skills: ## Run skill format validation tests
+	uv run pytest tests/skills -v
+
 lint: ## Run linter (ruff)
 	uv run ruff check src/
 

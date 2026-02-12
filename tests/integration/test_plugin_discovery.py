@@ -10,11 +10,11 @@ def test_plugin_manager_loads_core_plugins():
     pm = PluginManager()
     count = pm.load_core_plugins()
 
-    # Should load 9 core domain plugins + 3 composite plugins = 12 total
-    assert count == 12
-    assert len(pm.registered_plugins) == 12
+    # Should load 8 core domain plugins + 3 composite plugins = 11 total
+    assert count == 11
+    assert len(pm.registered_plugins) == 11
 
-    # Core domain plugins (9)
+    # Core domain plugins (8)
     expected_domains = {
         "projects",
         "notebooks",
@@ -23,14 +23,13 @@ def test_plugin_manager_loads_core_plugins():
         "connections",
         "storage",
         "training",
-        "prompts",
         "model_registry",
     }
     # Composite plugins (3)
     expected_composites = {
         "cluster-composites",
         "training-composites",
-        "meta-composites",
+        "fallback",
     }
     expected_plugins = expected_domains | expected_composites
     assert set(pm.registered_plugins.keys()) == expected_plugins
@@ -44,7 +43,7 @@ def test_core_plugins_have_valid_metadata():
     pm.load_core_plugins()
 
     metadata_list = pm.get_all_metadata()
-    assert len(metadata_list) == 12  # 9 domain + 3 composite
+    assert len(metadata_list) == 11  # 8 domain + 3 composite
 
     for meta in metadata_list:
         assert meta.name
@@ -91,7 +90,7 @@ def test_server_creates_plugin_manager():
     mcp = server.create_mcp()  # noqa: F841
 
     assert server._plugin_manager is not None
-    assert len(server.plugins) == 12  # 9 domain + 3 composite
+    assert len(server.plugins) == 11  # 8 domain + 3 composite
 
 
 def test_external_plugins_discovered():
@@ -118,7 +117,7 @@ def test_get_core_plugins_returns_plugin_instances():
     from rhoai_mcp.plugin import BasePlugin
 
     plugins = get_core_plugins()
-    assert len(plugins) == 9  # Domain plugins only, composites are separate
+    assert len(plugins) == 8  # Domain plugins only, composites are separate
 
     for plugin in plugins:
         assert isinstance(plugin, BasePlugin)
@@ -132,7 +131,7 @@ def test_get_composite_plugins_returns_plugin_instances():
     from rhoai_mcp.plugin import BasePlugin
 
     plugins = get_composite_plugins()
-    assert len(plugins) == 3  # cluster, training, meta composites
+    assert len(plugins) == 3  # cluster, training, fallback composites
 
     for plugin in plugins:
         assert isinstance(plugin, BasePlugin)

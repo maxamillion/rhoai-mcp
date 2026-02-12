@@ -133,28 +133,6 @@ class TestPluginManager:
 
         assert len(resource_calls) == 1
 
-    def test_register_all_prompts(self) -> None:
-        """Verify prompts are registered from all plugins."""
-        prompt_calls = []
-
-        class TestPlugin:
-            @hookimpl
-            def rhoai_register_prompts(
-                self, mcp: MagicMock, server: MagicMock
-            ) -> None:
-                prompt_calls.append(("register_prompts", mcp, server))
-
-        pm = PluginManager()
-        pm.register_plugin(TestPlugin(), name="test")
-
-        mock_mcp = MagicMock()
-        mock_server = MagicMock()
-        pm.register_all_prompts(mock_mcp, mock_server)
-
-        assert len(prompt_calls) == 1
-        assert prompt_calls[0][1] is mock_mcp
-        assert prompt_calls[0][2] is mock_server
-
     def test_run_health_checks_healthy_plugin(self) -> None:
         """Verify healthy plugins pass health check."""
 
@@ -241,12 +219,12 @@ class TestPluginManager:
         pm = PluginManager()
         count = pm.load_core_plugins()
 
-        # Should load 9 core domain plugins + 3 composite plugins = 12 total
-        assert count == 12
-        assert len(pm.registered_plugins) == 12
+        # Should load 8 core domain plugins + 3 composite plugins = 11 total
+        assert count == 11
+        assert len(pm.registered_plugins) == 11
 
         # Verify expected plugins are loaded
-        # Core domain plugins (9)
+        # Core domain plugins (8)
         expected_domains = {
             "projects",
             "notebooks",
@@ -255,14 +233,13 @@ class TestPluginManager:
             "connections",
             "storage",
             "training",
-            "prompts",
             "model_registry",
         }
         # Composite plugins (3)
         expected_composites = {
             "cluster-composites",
             "training-composites",
-            "meta-composites",
+            "fallback",
         }
         expected = expected_domains | expected_composites
         assert set(pm.registered_plugins.keys()) == expected
