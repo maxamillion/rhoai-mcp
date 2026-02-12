@@ -1,0 +1,14 @@
+{
+  "name": "rhoai",
+  "version": "1.0.0",
+  "description": "Red Hat OpenShift AI - training, inference, and ML workflows",
+  "author": {
+    "name": "Red Hat"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/redhat-ai-services/rhoai-mcp",
+  "keywords": ["openshift", "rhoai", "ml", "training", "inference", "kubernetes"],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json"
+}

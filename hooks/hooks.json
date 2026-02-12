@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$TOOL_OUTPUT\" | grep -qiE '(Unauthorized|forbidden|certificate.*expired|token.*expired)'; then echo 'WARNING: Cluster credentials may have expired. Re-authenticate with: oc login or configure KUBECONFIG.'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
