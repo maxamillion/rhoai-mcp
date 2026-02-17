@@ -19,8 +19,9 @@ WORKDIR /opt/app-root/src
 # Copy project files for dependency resolution
 COPY pyproject.toml uv.lock README.md ./
 
-# Copy source code
+# Copy source code and skills
 COPY src/ ./src/
+COPY skills/ ./skills/
 
 # Install dependencies and package
 RUN uv sync --frozen --no-dev
@@ -45,6 +46,9 @@ COPY --from=builder /opt/app-root/src/.venv /opt/app-root/src/.venv
 
 # Copy source code (needed for editable installs)
 COPY --from=builder /opt/app-root/src/src /opt/app-root/src/src
+
+# Copy skills for get_workflow_guide fallback tool
+COPY --from=builder /opt/app-root/src/skills /opt/app-root/src/skills
 
 # Add virtual environment to PATH
 ENV PATH="/opt/app-root/src/.venv/bin:$PATH"

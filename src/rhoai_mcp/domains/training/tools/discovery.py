@@ -111,6 +111,12 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             "has_gpus": resources.has_gpus,
         }
 
+        if resources.node_count == 0:
+            result["warning"] = (
+                "Could not retrieve node information. The service account may lack "
+                "'list nodes' cluster-wide permission. Resource totals are unavailable."
+            )
+
         if resources.gpu_info:
             result["gpu_info"] = {
                 "type": resources.gpu_info.type,

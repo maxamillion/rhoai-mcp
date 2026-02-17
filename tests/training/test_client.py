@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client.exceptions import ApiException  # type: ignore[import-untyped]
 
 from rhoai_mcp.domains.training.client import TrainingClient, _get_gpu_product
 from rhoai_mcp.domains.training.crds import TrainingCRDs
@@ -396,6 +397,48 @@ class TestGetClusterResourcesGpu:
         assert resources.gpu_info is not None
         assert resources.gpu_info.products == ["Tesla-T4"]
         assert resources.gpu_info.total == 4
+
+
+class TestGetClusterResourcesRbacFallback:
+    """Test get_cluster_resources graceful degradation when RBAC denies node listing."""
+
+    @pytest.fixture
+    def mock_k8s(self) -> MagicMock:
+        """Create a mock K8sClient."""
+        mock = MagicMock()
+        mock.core_v1 = MagicMock()
+        return mock
+
+    @pytest.fixture
+    def client(self, mock_k8s: MagicMock) -> TrainingClient:
+        """Create a TrainingClient with mocked K8sClient."""
+        return TrainingClient(mock_k8s)
+
+    def test_rbac_forbidden_returns_empty_resources(
+        self, client: TrainingClient, mock_k8s: MagicMock
+    ) -> None:
+        """When list_node raises 403, return empty ClusterResources."""
+        mock_k8s.core_v1.list_node.side_effect = ApiException(status=403, reason="Forbidden")
+
+        resources = client.get_cluster_resources()
+
+        assert resources.node_count == 0
+        assert resources.cpu_total == 0
+        assert resources.gpu_info is None
+        assert resources.nodes == []
+
+    def test_generic_exception_returns_empty_resources(
+        self, client: TrainingClient, mock_k8s: MagicMock
+    ) -> None:
+        """When list_node raises a generic exception, return empty ClusterResources."""
+        mock_k8s.core_v1.list_node.side_effect = Exception("connection refused")
+
+        resources = client.get_cluster_resources()
+
+        assert resources.node_count == 0
+        assert resources.cpu_total == 0
+        assert resources.gpu_info is None
+        assert resources.nodes == []
 
 
 def _make_mock_node(

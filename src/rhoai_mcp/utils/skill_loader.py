@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,22 +19,54 @@ class SkillInfo:
     content: str
 
 
+def _find_skills_dir() -> Path:
+    """Locate the skills directory using multiple strategies.
+
+    Search order:
+    1. RHOAI_MCP_SKILLS_DIR environment variable (explicit override)
+    2. Sibling to the installed package directory (works in containers
+       and editable installs where skills/ sits next to src/)
+    3. Relative to project root from source file (dev checkout fallback)
+    """
+    # 1. Explicit environment variable
+    env_dir = os.environ.get("RHOAI_MCP_SKILLS_DIR")
+    if env_dir:
+        path = Path(env_dir)
+        if path.is_dir():
+            return path
+        logger.warning(f"RHOAI_MCP_SKILLS_DIR set but not found: {path}")
+
+    # 2. Sibling to the package root (src/rhoai_mcp/../../skills)
+    #    Works for: container images, editable installs, pip installs
+    #    where skills/ is copied alongside the package
+    package_root = Path(__file__).parent.parent  # -> rhoai_mcp/
+    sibling_dir = package_root.parent / "skills"  # -> src/skills or site-packages/skills
+    if sibling_dir.is_dir():
+        return sibling_dir
+
+    # 3. Dev checkout: project root is 4 levels up
+    #    src/rhoai_mcp/utils/skill_loader.py -> project_root/skills
+    project_root = package_root.parent.parent
+    dev_dir = project_root / "skills"
+    if dev_dir.is_dir():
+        return dev_dir
+
+    # Return the most likely path even if it doesn't exist yet
+    return sibling_dir
+
+
 def load_skills(skills_dir: Path | None = None) -> dict[str, SkillInfo]:
     """Discover and parse all SKILL.md files.
 
     Args:
-        skills_dir: Path to the skills directory. If None, uses the
-            skills/ directory relative to the project root.
+        skills_dir: Path to the skills directory. If None, auto-detected
+            via environment variable or filesystem layout.
 
     Returns:
         Dictionary mapping skill names to SkillInfo instances.
     """
     if skills_dir is None:
-        # Find the skills directory relative to the project root
-        # The project root is 3 levels up from this file:
-        # src/rhoai_mcp/utils/skill_loader.py -> project root
-        project_root = Path(__file__).parent.parent.parent.parent
-        skills_dir = project_root / "skills"
+        skills_dir = _find_skills_dir()
 
     if not skills_dir.is_dir():
         logger.warning(f"Skills directory not found: {skills_dir}")

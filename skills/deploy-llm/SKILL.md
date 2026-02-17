@@ -35,7 +35,7 @@ Ask the user for:
 - If needed, use `mcp__rhoai__create_serving_runtime` to instantiate from template
 
 ### 3. Prepare Model Storage
-- If model is on HuggingFace, you may need to download it first
+- If model is on HuggingFace, the serving runtime will pull it at deploy time, or pre-stage it in S3/PVC storage
 - Create an S3 data connection with `mcp__rhoai__create_s3_data_connection` for model storage
 - Or use a PVC with the model files
 

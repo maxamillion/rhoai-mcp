@@ -51,10 +51,14 @@ def _get_cli_token() -> str | None:
 
     This is used when running outside the cluster and needing to
     authenticate to services that require it (e.g., kube-rbac-proxy on 8443).
+    Skipped entirely when running in-cluster, where CLI tools are unavailable.
 
     Returns:
         The authentication token, or None if not available.
     """
+    if _is_running_in_cluster():
+        return None
+
     # Try oc first (OpenShift), then kubectl
     for cli in ("oc", "kubectl"):
         cli_path = shutil.which(cli)

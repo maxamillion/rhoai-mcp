@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from rhoai_mcp.domains.training.crds import TrainingCRDs
@@ -16,6 +17,8 @@ from rhoai_mcp.domains.training.models import (
 
 if TYPE_CHECKING:
     from rhoai_mcp.clients.base import K8sClient
+
+logger = logging.getLogger(__name__)
 
 
 # GPU product label keys by GPU resource type
@@ -349,8 +352,17 @@ class TrainingClient:
 
         Returns:
             ClusterResources with CPU, memory, and GPU info.
+            Returns empty defaults if node listing fails (e.g., RBAC denied).
         """
-        nodes = self._k8s.core_v1.list_node()
+        try:
+            nodes = self._k8s.core_v1.list_node()
+        except Exception as e:
+            logger.warning(
+                f"Unable to list cluster nodes: {e}. "
+                "The service account may lack 'list nodes' permission. "
+                "Returning empty cluster resources."
+            )
+            return ClusterResources()
 
         total_cpu = 0
         allocatable_cpu = 0

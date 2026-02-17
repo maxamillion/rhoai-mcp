@@ -99,6 +99,19 @@ class TestGetCliToken:
 
         assert token is None
 
+    def test_in_cluster_skips_cli_lookup(self) -> None:
+        """When running in-cluster, skip CLI token lookup entirely."""
+        with patch(
+            "rhoai_mcp.domains.model_registry.auth._is_running_in_cluster",
+            return_value=True,
+        ), patch(
+            "rhoai_mcp.domains.model_registry.auth.subprocess.run",
+        ) as mock_run:
+            token = _get_cli_token()
+
+        assert token is None
+        mock_run.assert_not_called()
+
 
 class TestBuildAuthHeaders:
     """Test build_auth_headers function."""

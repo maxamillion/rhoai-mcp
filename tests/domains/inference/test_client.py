@@ -1,9 +1,11 @@
 """Tests for InferenceClient pod diagnostic methods."""
 
+import logging
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client.exceptions import ApiException  # type: ignore[import-untyped]
 
 from rhoai_mcp.domains.inference.client import InferenceClient
 
@@ -249,3 +251,65 @@ class TestInferenceClientDiagnostics:
         mock_pod.status.conditions = None
 
         assert client._is_pod_ready(mock_pod) is False
+
+
+class TestListServingRuntimeTemplatesLogging:
+    """Test logging behavior for serving runtime template listing failures."""
+
+    @pytest.fixture
+    def mock_k8s(self) -> MagicMock:
+        """Create a mock K8sClient."""
+        mock = MagicMock()
+        mock.core_v1 = MagicMock()
+        return mock
+
+    @pytest.fixture
+    def client(self, mock_k8s: MagicMock) -> InferenceClient:
+        """Create an InferenceClient with mocked K8sClient."""
+        return InferenceClient(mock_k8s)
+
+    def test_403_error_logs_at_info_level(
+        self,
+        client: InferenceClient,
+        mock_k8s: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When template listing returns 403, log at info with actionable message."""
+        mock_k8s.list_resources.side_effect = ApiException(status=403, reason="Forbidden")
+
+        with caplog.at_level(logging.INFO, logger="rhoai_mcp.domains.inference.client"):
+            result = client.list_serving_runtime_templates()
+
+        assert result == []
+        assert any("Permission denied" in msg for msg in caplog.messages)
+        assert any("redhat-ods-applications" in msg for msg in caplog.messages)
+
+    def test_other_api_error_logs_at_debug(
+        self,
+        client: InferenceClient,
+        mock_k8s: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When template listing returns non-403 ApiException, log at debug."""
+        mock_k8s.list_resources.side_effect = ApiException(status=500, reason="Internal Error")
+
+        with caplog.at_level(logging.DEBUG, logger="rhoai_mcp.domains.inference.client"):
+            result = client.list_serving_runtime_templates()
+
+        assert result == []
+        assert any("Failed to list templates" in msg for msg in caplog.messages)
+
+    def test_generic_error_logs_at_debug(
+        self,
+        client: InferenceClient,
+        mock_k8s: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When template listing raises generic exception, log at debug."""
+        mock_k8s.list_resources.side_effect = ConnectionError("timeout")
+
+        with caplog.at_level(logging.DEBUG, logger="rhoai_mcp.domains.inference.client"):
+            result = client.list_serving_runtime_templates()
+
+        assert result == []
+        assert any("Failed to list templates" in msg for msg in caplog.messages)

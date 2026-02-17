@@ -37,7 +37,7 @@ Ask the user for:
 
 ### 4. Optional: Create Additional Storage
 - Use `mcp__rhoai__create_storage` for model caching if needed
-- Useful for large models to avoid re-downloading
+- Useful for large models to cache model files and avoid repeated pulls from remote storage
 
 ### 5. Verify Setup
 - Use `mcp__rhoai__project_summary` to confirm configuration

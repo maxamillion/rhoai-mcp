@@ -275,14 +275,25 @@ class NotebookClient:
         }
 
     def _get_workbench_url(self, name: str, namespace: str) -> str | None:
-        """Internal method to construct workbench URL.
+        """Get workbench URL from the OpenShift Route resource.
 
-        In a real cluster, this would query the Route resource.
-        For now, we construct a standard RHOAI URL pattern.
+        Queries the Route CR for this workbench and constructs the URL
+        from the route's host and TLS configuration. Returns None if
+        the Route cannot be found or accessed (e.g., RBAC denied, CRD
+        not available).
         """
-        # Standard RHOAI workbench URL pattern
-        # In practice, you'd query the Route CR to get the actual host
-        return f"https://{name}-{namespace}.apps.cluster.example.com"
+        from rhoai_mcp.domains.model_registry.crds import ModelRegistryCRDs
+
+        try:
+            route = self._k8s.get(ModelRegistryCRDs.ROUTE, name=name, namespace=namespace)
+            host = route.spec.host
+            if not host:
+                return None
+            scheme = "https" if getattr(route.spec, "tls", None) else "http"
+            return f"{scheme}://{host}"
+        except Exception:
+            logger.debug(f"Could not resolve Route for workbench '{name}' in '{namespace}'")
+            return None
 
     def _ensure_workbench_pvc(self, name: str, namespace: str, size: str) -> None:
         """Ensure workbench PVC exists, create if not."""

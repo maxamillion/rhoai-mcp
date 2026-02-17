@@ -3,6 +3,8 @@
 import logging
 from typing import TYPE_CHECKING, Any
 
+from kubernetes.client.exceptions import ApiException  # type: ignore[import-untyped]
+
 from rhoai_mcp.domains.inference.crds import PLATFORM_NAMESPACE, InferenceCRDs
 from rhoai_mcp.domains.inference.models import (
     InferenceService,
@@ -144,6 +146,16 @@ class InferenceClient:
                 namespace=PLATFORM_NAMESPACE,
                 label_selector="opendatahub.io/dashboard=true",
             )
+        except ApiException as e:
+            if e.status == 403:
+                logger.info(
+                    f"Permission denied listing templates in '{PLATFORM_NAMESPACE}' namespace. "
+                    "Grant the service account 'get'/'list' on Templates in "
+                    f"'{PLATFORM_NAMESPACE}' to enable serving runtime template discovery."
+                )
+            else:
+                logger.debug(f"Failed to list templates: {e}")
+            return []
         except Exception as e:
             logger.debug(f"Failed to list templates: {e}")
             return []
