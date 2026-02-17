@@ -307,6 +307,7 @@ async def probe_api_type(
     url: str,
     config: RHOAIConfig,
     requires_auth: bool = False,
+    is_external: bool = False,
 ) -> str:
     """Probe which API type is available at the given URL.
 
@@ -317,6 +318,7 @@ async def probe_api_type(
         url: Base URL of the service.
         config: RHOAI configuration for auth and TLS settings.
         requires_auth: Whether the endpoint requires authentication.
+        is_external: Whether this is a port-forwarded connection (skip TLS).
 
     Returns:
         "model_catalog" if Model Catalog API is available,
@@ -328,7 +330,7 @@ async def probe_api_type(
 
     # Configure SSL
     verify: bool | ssl.SSLContext = True
-    if config.model_registry_skip_tls_verify:
+    if config.model_registry_skip_tls_verify or is_external:
         verify = False
 
     async with httpx.AsyncClient(

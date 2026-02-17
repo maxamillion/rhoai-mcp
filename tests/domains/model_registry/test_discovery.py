@@ -1,7 +1,7 @@
 """Tests for Model Registry auto-discovery."""
 
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from kubernetes.client import ApiException  # type: ignore[import-untyped]
@@ -10,6 +10,7 @@ from rhoai_mcp.domains.model_registry.discovery import (
     COMMON_NAMESPACES,
     DiscoveredModelRegistry,
     ModelRegistryDiscovery,
+    probe_api_type,
 )
 
 
@@ -428,3 +429,60 @@ class TestPortForwardDiscovery:
         )
         assert result.is_external is False
         assert result.port_forward_connection is None
+
+
+class TestProbeApiType:
+    """Tests for probe_api_type function."""
+
+    @pytest.fixture
+    def mock_config(self) -> MagicMock:
+        """Create a mock config."""
+        config = MagicMock()
+        config.model_registry_skip_tls_verify = False
+        config.model_registry_auth_mode = MagicMock()
+        config.model_registry_auth_mode.value = "none"
+        config.model_registry_token = None
+        config.effective_kubeconfig_path = MagicMock()
+        config.effective_kubeconfig_path.exists.return_value = False
+        config.kubeconfig_context = None
+        return config
+
+    @pytest.mark.asyncio
+    async def test_probe_skips_tls_when_is_external(self, mock_config: MagicMock) -> None:
+        """TLS verification is skipped when is_external=True."""
+        with patch("rhoai_mcp.domains.model_registry.discovery.httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_instance.get = AsyncMock(return_value=mock_response)
+
+            await probe_api_type(
+                "https://localhost:12345", mock_config, is_external=True
+            )
+
+            # Check that httpx.AsyncClient was called with verify=False
+            call_kwargs = mock_client.call_args[1]
+            assert call_kwargs["verify"] is False
+
+    @pytest.mark.asyncio
+    async def test_probe_enables_tls_when_not_external(self, mock_config: MagicMock) -> None:
+        """TLS verification is enabled when is_external=False."""
+        with patch("rhoai_mcp.domains.model_registry.discovery.httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_instance.get = AsyncMock(return_value=mock_response)
+
+            await probe_api_type(
+                "https://model-catalog.svc:8443", mock_config, is_external=False
+            )
+
+            # Check that httpx.AsyncClient was called with verify=True
+            call_kwargs = mock_client.call_args[1]
+            assert call_kwargs["verify"] is True

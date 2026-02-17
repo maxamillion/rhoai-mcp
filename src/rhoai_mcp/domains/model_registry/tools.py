@@ -42,9 +42,12 @@ logger = logging.getLogger(__name__)
 _cached_api_type: str | None = None
 _cached_discovery_url: str | None = None
 _cached_requires_auth: bool = False
+_cached_is_external: bool = False
 
 
-def _create_cached_catalog_discovery(url: str) -> DiscoveredModelRegistry:
+def _create_cached_catalog_discovery(
+    url: str, is_external: bool = False
+) -> DiscoveredModelRegistry:
     """Create a cached discovery result for Model Catalog API.
 
     Used when we already know the API type from probing and need to
@@ -52,6 +55,7 @@ def _create_cached_catalog_discovery(url: str) -> DiscoveredModelRegistry:
 
     Args:
         url: The discovered Model Catalog URL.
+        is_external: Whether the connection is port-forwarded.
 
     Returns:
         A DiscoveredModelRegistry configured for Model Catalog.
@@ -63,12 +67,13 @@ def _create_cached_catalog_discovery(url: str) -> DiscoveredModelRegistry:
         port=443,
         source="cached",
         requires_auth=True,
+        is_external=is_external,
         api_type="model_catalog",
     )
 
 
 def _create_cached_registry_discovery(
-    url: str, requires_auth: bool = False
+    url: str, requires_auth: bool = False, is_external: bool = False
 ) -> DiscoveredModelRegistry:
     """Create a cached discovery result for standard Model Registry API.
 
@@ -78,6 +83,7 @@ def _create_cached_registry_discovery(
     Args:
         url: The discovered Model Registry URL.
         requires_auth: Whether the endpoint requires authentication.
+        is_external: Whether the connection is port-forwarded.
 
     Returns:
         A DiscoveredModelRegistry configured for standard Model Registry.
@@ -89,6 +95,7 @@ def _create_cached_registry_discovery(
         port=443,
         source="cached",
         requires_auth=requires_auth,
+        is_external=is_external,
         api_type="model_registry",
     )
 
@@ -96,24 +103,30 @@ def _create_cached_registry_discovery(
 def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
     """Register Model Registry tools with the MCP server."""
 
-    async def _get_api_type() -> tuple[str, str, bool]:
-        """Get the detected API type, URL, and auth requirement, with caching.
+    async def _get_api_type() -> tuple[str, str, bool, bool]:
+        """Get the detected API type, URL, auth requirement, and external flag, with caching.
 
         Returns:
-            Tuple of (api_type, url, requires_auth) where api_type is one of:
+            Tuple of (api_type, url, requires_auth, is_external) where api_type is one of:
             "model_catalog", "model_registry", or "unknown".
         """
-        global _cached_api_type, _cached_discovery_url, _cached_requires_auth
+        global _cached_api_type, _cached_discovery_url, _cached_requires_auth, _cached_is_external
 
         # Use cached value if available (don't cache "unknown" results)
         if _cached_api_type is not None and _cached_discovery_url is not None:
-            return _cached_api_type, _cached_discovery_url, _cached_requires_auth
+            return (
+                _cached_api_type,
+                _cached_discovery_url,
+                _cached_requires_auth,
+                _cached_is_external,
+            )
 
         # Try discovery first
         from rhoai_mcp.config import ModelRegistryDiscoveryMode
 
         url = server.config.model_registry_url
         requires_auth = False
+        is_external = False
 
         if server.config.model_registry_discovery_mode == ModelRegistryDiscoveryMode.AUTO:
             discovery = ModelRegistryDiscovery(server.k8s)
@@ -122,21 +135,26 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             if result:
                 url = result.url
                 requires_auth = result.requires_auth
+                is_external = result.is_external
                 # If discovery already detected the API type, use it
                 if result.api_type != "unknown":
                     _cached_api_type = result.api_type
                     _cached_discovery_url = url
                     _cached_requires_auth = requires_auth
-                    return result.api_type, url, requires_auth
+                    _cached_is_external = is_external
+                    return result.api_type, url, requires_auth, is_external
 
         # Probe the API type
-        api_type = await probe_api_type(url, server.config, requires_auth)
+        api_type = await probe_api_type(
+            url, server.config, requires_auth, is_external=is_external
+        )
         # Only cache definitive results, not "unknown"
         if api_type != "unknown":
             _cached_api_type = api_type
             _cached_discovery_url = url
             _cached_requires_auth = requires_auth
-        return api_type, url, requires_auth
+            _cached_is_external = is_external
+        return api_type, url, requires_auth, is_external
 
     async def _require_model_registry(
         hint: str = "",
@@ -155,7 +173,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             - If cluster has Model Catalog: (error_dict, None)
             - If cluster has Model Registry: (None, discovery_result)
         """
-        api_type, url, requires_auth = await _get_api_type()
+        api_type, url, requires_auth, is_external = await _get_api_type()
         if api_type == "model_catalog":
             base_msg = (
                 "This tool requires a standard Model Registry. The cluster has a Model Catalog"
@@ -165,7 +183,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             else:
                 base_msg += "."
             return {"error": base_msg}, None
-        return None, _create_cached_registry_discovery(url, requires_auth)
+        return None, _create_cached_registry_discovery(url, requires_auth, is_external)
 
     @mcp.tool()
     async def list_registered_models(
@@ -200,13 +218,13 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
         try:
             # Detect which API is available
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             all_items: list[dict[str, Any]] = []
 
             if api_type == "model_catalog":
                 # Use Model Catalog client
-                discovery_result = _create_cached_catalog_discovery(url)
+                discovery_result = _create_cached_catalog_discovery(url, is_external)
                 async with ModelCatalogClient(server.config, discovery_result) as catalog_client:
                     catalog_models = await catalog_client.list_models(source_label=source_label)
                     all_items = [
@@ -215,7 +233,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                     ]
             else:
                 # Use standard Model Registry client
-                discovery_result = _create_cached_registry_discovery(url, requires_auth)
+                discovery_result = _create_cached_registry_discovery(url, requires_auth, is_external)
                 async with ModelRegistryClient(server.config, discovery_result) as registry_client:
                     registry_models = await registry_client.list_registered_models()
                     all_items = [
@@ -441,10 +459,10 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             return {"error": "Model Registry is disabled"}
 
         try:
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             if api_type == "model_catalog":
-                discovery_result = _create_cached_catalog_discovery(url)
+                discovery_result = _create_cached_catalog_discovery(url, is_external)
                 async with ModelCatalogClient(server.config, discovery_result) as catalog_client:
                     models = await catalog_client.list_models()
                     model = _find_catalog_model(models, model_name)
@@ -464,7 +482,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
 
                     return result
             else:
-                discovery_result = _create_cached_registry_discovery(url, requires_auth)
+                discovery_result = _create_cached_registry_discovery(url, requires_auth, is_external)
                 async with ModelRegistryClient(server.config, discovery_result) as client:
                     reg_extractor = BenchmarkExtractor(client)
                     benchmark = await reg_extractor.get_benchmark_for_model(
@@ -515,10 +533,10 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             return {"error": "Model Registry is disabled"}
 
         try:
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             if api_type == "model_catalog":
-                discovery_result = _create_cached_catalog_discovery(url)
+                discovery_result = _create_cached_catalog_discovery(url, is_external)
                 async with ModelCatalogClient(server.config, discovery_result) as catalog_client:
                     models = await catalog_client.list_models()
                     model = _find_catalog_model(models, model_name)
@@ -535,7 +553,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                     )
                     return result
             else:
-                discovery_result = _create_cached_registry_discovery(url, requires_auth)
+                discovery_result = _create_cached_registry_discovery(url, requires_auth, is_external)
                 async with ModelRegistryClient(server.config, discovery_result) as client:
                     # Find the model
                     reg_model = await client.get_registered_model_by_name(model_name)
@@ -589,10 +607,10 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             return {"error": "Model Registry is disabled"}
 
         try:
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             if api_type == "model_catalog":
-                discovery_result = _create_cached_catalog_discovery(url)
+                discovery_result = _create_cached_catalog_discovery(url, is_external)
                 async with ModelCatalogClient(server.config, discovery_result) as catalog_client:
                     all_models = await catalog_client.list_models()
 
@@ -614,7 +632,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                         "count": len(matching),
                     }
             else:
-                discovery_result = _create_cached_registry_discovery(url, requires_auth)
+                discovery_result = _create_cached_registry_discovery(url, requires_auth, is_external)
                 async with ModelRegistryClient(server.config, discovery_result) as client:
                     reg_extractor = BenchmarkExtractor(client)
                     benchmarks = await reg_extractor.find_benchmarks_by_gpu(gpu_type)
@@ -647,7 +665,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             return {"error": "Model Registry is disabled"}
 
         try:
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             if api_type != "model_catalog":
                 return {
@@ -655,7 +673,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                     f"The cluster appears to have a standard Model Registry (api_type={api_type})."
                 }
 
-            discovery_result = _create_cached_catalog_discovery(url)
+            discovery_result = _create_cached_catalog_discovery(url, is_external)
             async with ModelCatalogClient(server.config, discovery_result) as client:
                 sources = await client.get_sources()
                 formatted_sources = [_format_catalog_source(s) for s in sources]
@@ -695,7 +713,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             return {"error": "Model Registry is disabled"}
 
         try:
-            api_type, url, requires_auth = await _get_api_type()
+            api_type, url, requires_auth, is_external = await _get_api_type()
 
             if api_type != "model_catalog":
                 return {
@@ -703,7 +721,7 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                     f"The cluster appears to have a standard Model Registry (api_type={api_type})."
                 }
 
-            discovery_result = _create_cached_catalog_discovery(url)
+            discovery_result = _create_cached_catalog_discovery(url, is_external)
             async with ModelCatalogClient(server.config, discovery_result) as client:
                 # If source_id not provided, look it up from the model
                 effective_source_id = source_id

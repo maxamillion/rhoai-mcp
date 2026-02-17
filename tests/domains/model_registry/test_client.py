@@ -15,6 +15,7 @@ from rhoai_mcp.domains.model_registry.client import (
     _format_connection_error,
     _is_internal_k8s_url,
 )
+from rhoai_mcp.domains.model_registry.discovery import DiscoveredModelRegistry
 from rhoai_mcp.domains.model_registry.errors import (
     ModelNotFoundError,
     ModelRegistryConnectionError,
@@ -557,3 +558,67 @@ class TestModelRegistryClientAuth:
             headers = client._get_auth_headers()
 
         assert headers == {}
+
+
+class TestModelRegistryClientTLSVerification:
+    """Test TLS verification behavior in ModelRegistryClient."""
+
+    @pytest.fixture
+    def mock_config_tls(self) -> MagicMock:
+        """Create a mock config with TLS verification enabled."""
+        config = MagicMock()
+        config.model_registry_url = "https://model-registry.test:8443"
+        config.model_registry_timeout = 30
+        config.model_registry_auth_mode = ModelRegistryAuthMode.NONE
+        config.model_registry_skip_tls_verify = False
+        return config
+
+    @pytest.mark.asyncio
+    async def test_tls_verify_disabled_when_is_external(
+        self, mock_config_tls: MagicMock
+    ) -> None:
+        """TLS verification is disabled for port-forwarded (is_external) connections."""
+        discovery = DiscoveredModelRegistry(
+            url="https://localhost:12345",
+            namespace="rhoai-model-registries",
+            service_name="model-catalog",
+            port=8443,
+            source="crd_port_forward",
+            requires_auth=True,
+            is_external=True,
+        )
+        client = ModelRegistryClient(mock_config_tls, discovery)
+        http_client = await client._get_client()
+        # httpx stores verify as _transport ssl context; verify=False means no SSL verification
+        assert http_client._transport._pool._ssl_context.check_hostname is False  # type: ignore[union-attr]
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_tls_verify_enabled_when_not_external(
+        self, mock_config_tls: MagicMock
+    ) -> None:
+        """TLS verification remains enabled for non-port-forwarded connections."""
+        discovery = DiscoveredModelRegistry(
+            url="https://model-catalog.rhoai.svc:8443",
+            namespace="rhoai-model-registries",
+            service_name="model-catalog",
+            port=8443,
+            source="crd",
+            requires_auth=True,
+            is_external=False,
+        )
+        client = ModelRegistryClient(mock_config_tls, discovery)
+        http_client = await client._get_client()
+        assert http_client._transport._pool._ssl_context.check_hostname is True  # type: ignore[union-attr]
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_tls_verify_disabled_when_skip_tls_config(
+        self, mock_config_tls: MagicMock
+    ) -> None:
+        """TLS verification is disabled when config skip_tls_verify is True."""
+        mock_config_tls.model_registry_skip_tls_verify = True
+        client = ModelRegistryClient(mock_config_tls)
+        http_client = await client._get_client()
+        assert http_client._transport._pool._ssl_context.check_hostname is False  # type: ignore[union-attr]
+        await client.close()

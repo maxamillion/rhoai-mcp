@@ -90,6 +90,12 @@ class ModelCatalogClient:
                     "TLS verification disabled for Model Catalog. "
                     "This is not recommended for production."
                 )
+            elif self._discovery and self._discovery.is_external:
+                verify = False
+                logger.debug(
+                    "TLS verification disabled for port-forwarded connection to %s",
+                    self._discovery.service_name,
+                )
 
             self._http_client = httpx.AsyncClient(
                 base_url=self._get_base_url(),
