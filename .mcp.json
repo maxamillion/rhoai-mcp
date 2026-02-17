@@ -2,7 +2,7 @@
   "mcpServers": {
     "rhoai": {
       "command": "uv",
-      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "rhoai-mcp"],
+      "args": ["run", "--directory", ".", "rhoai-mcp"],
       "env": {}
     }
   }
