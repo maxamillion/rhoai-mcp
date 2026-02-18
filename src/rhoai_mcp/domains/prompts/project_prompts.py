@@ -70,7 +70,7 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
 
 6. **Verify Setup**
    - Use `project_summary` to confirm all resources are created
-   - Use `check_training_prerequisites` with your target model
+   - Use `training(action="prerequisites")` with your target model
 
 Please start by creating the project."""
 
@@ -146,7 +146,7 @@ Please start by creating the project."""
 **Please help me complete these steps:**
 
 1. **Check Existing Connections**
-   - Use `list_data_connections` for namespace={namespace}
+   - Use `list_resources(resource_type="connections")` for namespace={namespace}
    - Verify the connection doesn't already exist
 
 2. **Gather S3 Credentials**
@@ -163,7 +163,7 @@ Please start by creating the project."""
    - Optionally set a display_name for the UI
 
 4. **Verify the Connection**
-   - Use `get_data_connection` to confirm it was created
+   - Use `get_resource(resource_type="connection")` to confirm it was created
    - Credentials will be masked in the output
 
 5. **Usage**

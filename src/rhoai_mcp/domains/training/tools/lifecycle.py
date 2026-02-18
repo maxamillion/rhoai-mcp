@@ -1,4 +1,8 @@
-"""MCP Tools for training job lifecycle management."""
+"""MCP Tools for training job lifecycle management.
+
+Note: suspend_training_job, resume_training_job, and delete_training_job have been
+consolidated into the unified training() tool (action="suspend"/"resume"/"delete").
+"""
 
 from __future__ import annotations
 
@@ -16,107 +20,6 @@ if TYPE_CHECKING:
 
 def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     """Register training lifecycle tools with the MCP server."""
-
-    @mcp.tool()
-    def suspend_training_job(namespace: str, name: str) -> dict[str, Any]:
-        """Suspend a running training job.
-
-        Stops the training pods gracefully while preserving checkpoints
-        and state. The job can be resumed later with resume_training_job.
-        This frees up GPU and other compute resources.
-
-        Args:
-            namespace: The namespace of the training job.
-            name: The name of the training job.
-
-        Returns:
-            Confirmation of suspension.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("update")
-        if not allowed:
-            return {"error": reason}
-
-        client = TrainingClient(server.k8s)
-        client.suspend_training_job(namespace, name)
-
-        return {
-            "success": True,
-            "job_name": name,
-            "namespace": namespace,
-            "message": f"Training job '{name}' has been suspended. Use resume_training_job to continue.",
-        }
-
-    @mcp.tool()
-    def resume_training_job(namespace: str, name: str) -> dict[str, Any]:
-        """Resume a suspended training job.
-
-        Restarts the training pods for a previously suspended job.
-        Training will continue from the last checkpoint if checkpointing
-        was configured.
-
-        Args:
-            namespace: The namespace of the training job.
-            name: The name of the training job.
-
-        Returns:
-            Confirmation of resumption.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("update")
-        if not allowed:
-            return {"error": reason}
-
-        client = TrainingClient(server.k8s)
-        client.resume_training_job(namespace, name)
-
-        return {
-            "success": True,
-            "job_name": name,
-            "namespace": namespace,
-            "message": f"Training job '{name}' has been resumed.",
-        }
-
-    @mcp.tool()
-    def delete_training_job(namespace: str, name: str, confirm: bool = False) -> dict[str, Any]:
-        """Delete a training job.
-
-        Permanently removes the training job and associated resources.
-        This action cannot be undone. Checkpoints stored on PVCs will
-        not be deleted.
-
-        Args:
-            namespace: The namespace of the training job.
-            name: The name of the training job.
-            confirm: Must be True to actually delete.
-
-        Returns:
-            Confirmation of deletion.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("delete")
-        if not allowed:
-            return {"error": reason}
-
-        if not confirm:
-            return {
-                "error": "Deletion not confirmed",
-                "message": (
-                    f"To delete training job '{name}', set confirm=True. "
-                    "WARNING: This action cannot be undone."
-                ),
-            }
-
-        client = TrainingClient(server.k8s)
-        client.delete_training_job(namespace, name)
-
-        return {
-            "success": True,
-            "deleted": True,
-            "job_name": name,
-            "namespace": namespace,
-            "message": f"Training job '{name}' has been deleted.",
-        }
 
     @mcp.tool()
     def wait_for_job_completion(

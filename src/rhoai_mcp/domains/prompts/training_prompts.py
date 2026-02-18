@@ -54,8 +54,8 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
 **Please help me complete these steps:**
 
 1. **Check Prerequisites**
-   - Use `check_training_prerequisites` to verify the namespace, model access, and GPU availability
-   - Use `estimate_resources` to determine GPU memory requirements for {model_id} with {method}
+   - Use `training(action="prerequisites")` to verify the namespace, model access, and GPU availability
+   - Use `training(action="estimate")` to determine GPU memory requirements for {model_id} with {method}
 
 2. **Prepare Infrastructure**
    - Use `list_training_runtimes` to find an available training runtime
@@ -66,16 +66,16 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
    - If {model_id} is a gated model, use `setup_hf_credentials` with my HuggingFace token
 
 4. **Validate Configuration**
-   - Use `validate_training_config` to verify all resources are ready
+   - Use `training(action="validate")` to verify all resources are ready
 
 5. **Start Training**
-   - Use `train` with the configuration above
+   - Use `training(action="create")` with the configuration above
    - First call without confirmed=True to preview the job spec
    - Then call with confirmed=True to create the job
 
 6. **Monitor Progress**
-   - Use `get_training_progress` to check training metrics
-   - Use `get_training_logs` if issues arise
+   - Use `training(action="progress")` to check training metrics
+   - Use `training(action="logs")` if issues arise
 
 Please start by checking the prerequisites and estimating resource requirements."""
 
@@ -102,24 +102,24 @@ Please start by checking the prerequisites and estimating resource requirements.
 **Please help me with:**
 
 1. **Check Job Status**
-   - Use `get_training_job` to get the current job status and configuration
-   - Use `get_training_progress` to see real-time training metrics (epoch, loss, learning rate)
+   - Use `training(action="get")` to get the current job status and configuration
+   - Use `training(action="progress")` to see real-time training metrics (epoch, loss, learning rate)
 
 2. **Review Logs**
-   - Use `get_training_logs` to check the trainer container logs
+   - Use `training(action="logs")` to check the trainer container logs
    - Look for warnings or errors in the output
 
 3. **Check Events**
-   - Use `get_job_events` to see Kubernetes events for the job
+   - Use `training(action="events")` to see Kubernetes events for the job
    - This helps identify scheduling issues, OOM conditions, or resource problems
 
 4. **Check Checkpoints**
-   - Use `manage_checkpoints` to see saved checkpoint information
+   - Use `training(action="checkpoints")` to see saved checkpoint information
    - Verify checkpoints are being saved as expected
 
 5. **If Issues Found**
    - If the job is stuck or failing, use `analyze_training_failure` for diagnosis
-   - Consider using `suspend_training_job` if you need to pause and investigate
+   - Consider using `training(action="suspend")` if you need to pause and investigate
 
 Please start by getting the current job status and training progress."""
 
@@ -146,22 +146,22 @@ Please start by getting the current job status and training progress."""
 **Please help me with:**
 
 1. **Check Current State**
-   - Use `get_training_job` to see the current job status
-   - Use `manage_checkpoints` to find the latest checkpoint
+   - Use `training(action="get")` to see the current job status
+   - Use `training(action="checkpoints")` to find the latest checkpoint
 
 2. **If Job is Suspended**
-   - Use `resume_training_job` to restart the job
+   - Use `training(action="resume")` to restart the job
    - The job will continue from the last checkpoint automatically
 
 3. **If Job Failed**
    - Use `analyze_training_failure` to understand why it failed
-   - Use `get_job_events` to check for infrastructure issues
+   - Use `training(action="events")` to check for infrastructure issues
    - Fix any issues (OOM, storage, etc.)
-   - You may need to create a new job with `train` using the checkpoint_dir parameter
+   - You may need to create a new job with `training(action="create")` using the checkpoint_dir parameter
 
 4. **Verify Resumption**
-   - Use `get_training_progress` to confirm training has resumed
+   - Use `training(action="progress")` to confirm training has resumed
    - Check that the epoch/step numbers continue from where they left off
-   - Use `get_training_logs` to verify no errors on startup
+   - Use `training(action="logs")` to verify no errors on startup
 
 Please start by checking the current job state and checkpoint availability."""

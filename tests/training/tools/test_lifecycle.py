@@ -27,121 +27,14 @@ class TestLifecycleTools:
         server.config.is_operation_allowed.return_value = (True, None)
         return server
 
-    def test_register_tools_registers_all_lifecycle_tools(
+    def test_register_tools_registers_lifecycle_tools(
         self, mock_mcp: MagicMock, mock_server: MagicMock
     ) -> None:
-        """Test that all lifecycle tools are registered."""
+        """Test that lifecycle tools are registered."""
         register_tools(mock_mcp, mock_server)
 
-        # Check that tool decorator was called for each tool
-        assert mock_mcp.tool.call_count >= 4  # At least 4 lifecycle tools
-
-    def test_suspend_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
-        """Test suspending a training job."""
-        mock_server.k8s.patch.return_value = _make_mock_resource("my-job", "training")
-
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["suspend_training_job"](namespace="training", name="my-job")
-
-        assert result["success"] is True
-        assert "suspended" in result["message"].lower()
-
-    def test_suspend_training_job_not_allowed(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
-        """Test suspending a training job when not allowed by policy."""
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        mock_server.config.is_operation_allowed.return_value = (False, "Read-only mode")
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["suspend_training_job"](namespace="training", name="my-job")
-
-        assert "error" in result
-        assert "Read-only" in result["error"]
-
-    def test_resume_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
-        """Test resuming a training job."""
-        mock_server.k8s.patch.return_value = _make_mock_resource("my-job", "training")
-
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["resume_training_job"](namespace="training", name="my-job")
-
-        assert result["success"] is True
-        assert "resumed" in result["message"].lower()
-
-    def test_delete_training_job_requires_confirm(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
-        """Test that delete requires confirmation."""
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["delete_training_job"](namespace="training", name="my-job", confirm=False)
-
-        assert "error" in result
-        assert "confirm" in result["message"].lower()
-
-    def test_delete_training_job_with_confirm(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
-        """Test deleting a training job with confirmation."""
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["delete_training_job"](namespace="training", name="my-job", confirm=True)
-
-        assert result["success"] is True
-        assert result["deleted"] is True
-        mock_server.k8s.delete.assert_called_once()
+        # wait_for_job_completion and get_job_spec
+        assert mock_mcp.tool.call_count >= 2
 
     def test_wait_for_job_completion(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test waiting for job completion."""

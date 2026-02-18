@@ -1,4 +1,9 @@
-"""MCP Tools for Notebook (Workbench) operations."""
+"""MCP Tools for Notebook (Workbench) operations.
+
+Note: list_workbenches, get_workbench, start_workbench, stop_workbench, and
+delete_workbench have been consolidated into the cluster composite tools
+(list_resources, get_resource, manage_resource).
+"""
 
 from typing import TYPE_CHECKING, Any
 
@@ -6,12 +11,6 @@ from mcp.server.fastmcp import FastMCP
 
 from rhoai_mcp.domains.notebooks.client import NotebookClient
 from rhoai_mcp.domains.notebooks.models import WorkbenchCreate
-from rhoai_mcp.utils.response import (
-    PaginatedResponse,
-    ResponseBuilder,
-    Verbosity,
-    paginate,
-)
 
 if TYPE_CHECKING:
     from rhoai_mcp.server import RHOAIServer
@@ -19,70 +18,6 @@ if TYPE_CHECKING:
 
 def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
     """Register workbench management tools with the MCP server."""
-
-    @mcp.tool()
-    def list_workbenches(
-        namespace: str,
-        limit: int | None = None,
-        offset: int = 0,
-        verbosity: str = "standard",
-    ) -> dict[str, Any]:
-        """List workbenches in a Data Science Project with pagination.
-
-        Workbenches are Jupyter notebook environments or other IDE environments
-        running in the project.
-
-        Args:
-            namespace: The project (namespace) name.
-            limit: Maximum number of items to return (None for all).
-            offset: Starting offset for pagination (default: 0).
-            verbosity: Response detail level - "minimal", "standard", or "full".
-                Use "minimal" for quick status checks (~85% token savings).
-
-        Returns:
-            Paginated list of workbenches with metadata.
-        """
-        client = NotebookClient(server.k8s)
-        workbenches = client.list_workbenches(namespace)
-
-        # Apply config limits
-        effective_limit = limit
-        if effective_limit is not None:
-            effective_limit = min(effective_limit, server.config.max_list_limit)
-        elif server.config.default_list_limit is not None:
-            effective_limit = server.config.default_list_limit
-
-        # Paginate
-        paginated, total = paginate(workbenches, offset, effective_limit)
-
-        # Format with verbosity
-        v = Verbosity.from_str(verbosity)
-        items = [ResponseBuilder.workbench_list_item(wb, v) for wb in paginated]
-
-        return PaginatedResponse.build(items, total, offset, effective_limit)
-
-    @mcp.tool()
-    def get_workbench(
-        name: str,
-        namespace: str,
-        verbosity: str = "full",
-    ) -> dict[str, Any]:
-        """Get detailed information about a workbench.
-
-        Args:
-            name: The workbench name.
-            namespace: The project (namespace) name.
-            verbosity: Response detail level - "minimal", "standard", or "full".
-                Use "minimal" for quick status checks.
-
-        Returns:
-            Workbench information at the requested verbosity level.
-        """
-        client = NotebookClient(server.k8s)
-        wb = client.get_workbench(name, namespace)
-
-        v = Verbosity.from_str(verbosity)
-        return ResponseBuilder.workbench_detail(wb, v)
 
     @mcp.tool()
     def create_workbench(
@@ -153,116 +88,6 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
             "url": wb.url,
             "message": f"Workbench '{name}' created successfully. It will start automatically.",
             "_source": wb.metadata.to_source_dict(),
-        }
-
-    @mcp.tool()
-    def start_workbench(name: str, namespace: str) -> dict[str, Any]:
-        """Start a stopped workbench.
-
-        Removes the kubeflow-resource-stopped annotation to allow the
-        workbench pod to be scheduled.
-
-        Args:
-            name: The workbench name.
-            namespace: The project (namespace) name.
-
-        Returns:
-            Updated workbench status.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("update")
-        if not allowed:
-            return {"error": reason}
-
-        client = NotebookClient(server.k8s)
-        wb = client.start_workbench(name, namespace)
-
-        return {
-            "name": wb.metadata.name,
-            "status": wb.status.value,
-            "url": wb.url,
-            "message": f"Workbench '{name}' is starting",
-            "_source": wb.metadata.to_source_dict(),
-        }
-
-    @mcp.tool()
-    def stop_workbench(name: str, namespace: str) -> dict[str, Any]:
-        """Stop a running workbench.
-
-        Adds the kubeflow-resource-stopped annotation which causes the
-        workbench pod to be terminated. The workbench can be restarted later.
-
-        Args:
-            name: The workbench name.
-            namespace: The project (namespace) name.
-
-        Returns:
-            Updated workbench status.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("update")
-        if not allowed:
-            return {"error": reason}
-
-        client = NotebookClient(server.k8s)
-        wb = client.stop_workbench(name, namespace)
-
-        return {
-            "name": wb.metadata.name,
-            "status": wb.status.value,
-            "stopped_time": wb.stopped_time.isoformat() if wb.stopped_time else None,
-            "message": f"Workbench '{name}' is stopping",
-            "_source": wb.metadata.to_source_dict(),
-        }
-
-    @mcp.tool()
-    def delete_workbench(
-        name: str,
-        namespace: str,
-        confirm: bool = False,
-    ) -> dict[str, Any]:
-        """Delete a workbench.
-
-        WARNING: This permanently deletes the workbench. The associated PVC
-        is NOT automatically deleted to preserve data.
-
-        Args:
-            name: The workbench name.
-            namespace: The project (namespace) name.
-            confirm: Must be True to actually delete.
-
-        Returns:
-            Confirmation of deletion.
-        """
-        # Check if operation is allowed
-        allowed, reason = server.config.is_operation_allowed("delete")
-        if not allowed:
-            return {"error": reason}
-
-        if not confirm:
-            return {
-                "error": "Deletion not confirmed",
-                "message": (
-                    f"To delete workbench '{name}', set confirm=True. "
-                    "Note: The workbench PVC will be preserved."
-                ),
-            }
-
-        client = NotebookClient(server.k8s)
-        client.delete_workbench(name, namespace)
-
-        return {
-            "name": name,
-            "namespace": namespace,
-            "deleted": True,
-            "message": f"Workbench '{name}' deleted. PVC '{name}-pvc' was preserved.",
-            "_source": {
-                "kind": "Notebook",
-                "api_version": "kubeflow.org/v1",
-                "name": name,
-                "namespace": namespace,
-                "uid": None,
-            },
         }
 
     @mcp.tool()

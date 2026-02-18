@@ -230,3 +230,107 @@ class TestUnifiedTrainingTool:
         assert result["action"] == "estimate"
         assert "estimated_params_billion" in result
         assert result["estimated_params_billion"] == 7.0
+
+    @patch("rhoai_mcp.composites.training.unified.TrainingClient")
+    def test_logs_action_with_analysis(
+        self, mock_client_class: MagicMock, mock_mcp: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Logs action detects CUDA OOM issues."""
+        mock_client_class.return_value.get_training_logs.return_value = (
+            "Training started\nCUDA out of memory. Tried to allocate 2GB"
+        )
+
+        register_tools(mock_mcp, mock_server)
+        training = mock_mcp._registered_tools["training"]
+
+        result = training(action="logs", namespace="test", name="job-1")
+
+        assert result["action"] == "logs"
+        assert result["issues"] is not None
+        assert any("CUDA out of memory" in issue for issue in result["issues"])
+
+    @patch("rhoai_mcp.composites.training.unified.TrainingClient")
+    def test_logs_action_no_issues(
+        self, mock_client_class: MagicMock, mock_mcp: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Logs action returns no issues for clean logs."""
+        mock_client_class.return_value.get_training_logs.return_value = (
+            "Training started\nEpoch 1/3 complete\nLoss: 0.5"
+        )
+
+        register_tools(mock_mcp, mock_server)
+        training = mock_mcp._registered_tools["training"]
+
+        result = training(action="logs", namespace="test", name="job-1")
+
+        assert result["action"] == "logs"
+        assert result["issues"] is None
+
+    @patch("rhoai_mcp.composites.training.unified.TrainingClient")
+    def test_events_action_with_issue_detection(
+        self, mock_client_class: MagicMock, mock_mcp: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Events action detects OOM and scheduling issues."""
+        mock_client_class.return_value.get_job_events.return_value = [
+            {"type": "Warning", "reason": "OOMKilled", "message": "Container killed"},
+            {"type": "Warning", "reason": "FailedScheduling", "message": "No gpu available"},
+        ]
+
+        register_tools(mock_mcp, mock_server)
+        training = mock_mcp._registered_tools["training"]
+
+        result = training(action="events", namespace="test", name="job-1")
+
+        assert result["action"] == "events"
+        assert result["has_warnings"] is True
+        assert result["issues"] is not None
+        assert len(result["issues"]) == 2
+        assert result["suggestions"] is not None
+
+    @patch("rhoai_mcp.composites.training.unified.TrainingClient")
+    def test_events_action_no_issues(
+        self, mock_client_class: MagicMock, mock_mcp: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Events action returns no issues for clean events."""
+        mock_client_class.return_value.get_job_events.return_value = [
+            {"type": "Normal", "reason": "Created", "message": "Job created"},
+        ]
+
+        register_tools(mock_mcp, mock_server)
+        training = mock_mcp._registered_tools["training"]
+
+        result = training(action="events", namespace="test", name="job-1")
+
+        assert result["action"] == "events"
+        assert result["has_warnings"] is False
+        assert result["issues"] is None
+
+    @patch("rhoai_mcp.composites.training.unified.TrainingClient")
+    def test_progress_includes_gradient_norm(
+        self, mock_client_class: MagicMock, mock_mcp: MagicMock, mock_server: MagicMock
+    ) -> None:
+        """Progress action includes gradient_norm field."""
+        mock_job = MagicMock()
+        mock_job.name = "test-job"
+        mock_job.progress = MagicMock()
+        mock_job.progress.state.value = "Training"
+        mock_job.progress.current_epoch = 2
+        mock_job.progress.total_epochs = 5
+        mock_job.progress.current_step = 100
+        mock_job.progress.total_steps = 500
+        mock_job.progress.progress_percent = 20.0
+        mock_job.progress.progress_bar.return_value = "[====                ]"
+        mock_job.progress.loss = 1.5
+        mock_job.progress.learning_rate = 0.0001
+        mock_job.progress.throughput = 50.0
+        mock_job.progress.gradient_norm = 0.85
+        mock_job.progress.eta_seconds = 3600
+        mock_client_class.return_value.get_training_job.return_value = mock_job
+
+        register_tools(mock_mcp, mock_server)
+        training = mock_mcp._registered_tools["training"]
+
+        result = training(action="progress", namespace="test", name="test-job")
+
+        assert result["action"] == "progress"
+        assert result["gradient_norm"] == 0.85

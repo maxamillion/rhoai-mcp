@@ -1,4 +1,8 @@
-"""MCP Tools for Data Connection operations."""
+"""MCP Tools for Data Connection operations.
+
+Note: list_data_connections and get_data_connection have been consolidated
+into the cluster composite tools (list_resources, get_resource).
+"""
 
 from typing import TYPE_CHECKING, Any
 
@@ -6,12 +10,6 @@ from mcp.server.fastmcp import FastMCP
 
 from rhoai_mcp.domains.connections.client import ConnectionClient
 from rhoai_mcp.domains.connections.models import S3DataConnectionCreate
-from rhoai_mcp.utils.response import (
-    PaginatedResponse,
-    ResponseBuilder,
-    Verbosity,
-    paginate,
-)
 
 if TYPE_CHECKING:
     from rhoai_mcp.server import RHOAIServer
@@ -19,80 +17,6 @@ if TYPE_CHECKING:
 
 def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
     """Register data connection tools with the MCP server."""
-
-    @mcp.tool()
-    def list_data_connections(
-        namespace: str,
-        limit: int | None = None,
-        offset: int = 0,
-        verbosity: str = "standard",
-    ) -> dict[str, Any]:
-        """List data connections in a Data Science Project with pagination.
-
-        Data connections are secrets with RHOAI-specific labels that provide
-        credentials for accessing external data sources like S3 buckets.
-
-        Args:
-            namespace: The project (namespace) name.
-            limit: Maximum number of items to return (None for all).
-            offset: Starting offset for pagination (default: 0).
-            verbosity: Response detail level - "minimal", "standard", or "full".
-                Use "minimal" for quick status checks.
-
-        Returns:
-            Paginated list of data connections with metadata (credentials masked).
-        """
-        client = ConnectionClient(server.k8s)
-        all_items = client.list_data_connections(namespace)
-
-        # Apply config limits
-        effective_limit = limit
-        if effective_limit is not None:
-            effective_limit = min(effective_limit, server.config.max_list_limit)
-        elif server.config.default_list_limit is not None:
-            effective_limit = server.config.default_list_limit
-
-        # Paginate
-        paginated, total = paginate(all_items, offset, effective_limit)
-
-        # Format with verbosity
-        v = Verbosity.from_str(verbosity)
-        items = [ResponseBuilder.data_connection_list_item(conn, v) for conn in paginated]
-
-        return PaginatedResponse.build(items, total, offset, effective_limit)
-
-    @mcp.tool()
-    def get_data_connection(name: str, namespace: str) -> dict[str, Any]:
-        """Get detailed information about a data connection.
-
-        Sensitive values like secret keys are masked for security.
-
-        Args:
-            name: The data connection (secret) name.
-            namespace: The project (namespace) name.
-
-        Returns:
-            Data connection details with masked credentials.
-        """
-        client = ConnectionClient(server.k8s)
-        conn = client.get_data_connection(name, namespace, mask_secrets=True)
-
-        return {
-            "name": conn.metadata.name,
-            "namespace": conn.metadata.namespace,
-            "display_name": conn.display_name,
-            "type": conn.connection_type,
-            "aws_access_key_id": conn.aws_access_key_id,
-            "aws_s3_endpoint": conn.aws_s3_endpoint,
-            "aws_s3_bucket": conn.aws_s3_bucket,
-            "aws_default_region": conn.aws_default_region,
-            "created": (
-                conn.metadata.creation_timestamp.isoformat()
-                if conn.metadata.creation_timestamp
-                else None
-            ),
-            "_source": conn.metadata.to_source_dict(),
-        }
 
     @mcp.tool()
     def create_s3_data_connection(

@@ -1,4 +1,8 @@
-"""MCP Tools for Data Science Project operations."""
+"""MCP Tools for Data Science Project operations.
+
+Note: list_data_science_projects and get_project_details have been consolidated
+into the cluster composite tools (list_resources, get_resource, project_summary).
+"""
 
 from typing import TYPE_CHECKING, Any
 
@@ -6,12 +10,6 @@ from mcp.server.fastmcp import FastMCP
 
 from rhoai_mcp.domains.projects.client import ProjectClient
 from rhoai_mcp.domains.projects.models import ProjectCreate
-from rhoai_mcp.utils.response import (
-    PaginatedResponse,
-    ResponseBuilder,
-    Verbosity,
-    paginate,
-)
 
 if TYPE_CHECKING:
     from rhoai_mcp.server import RHOAIServer
@@ -19,68 +17,6 @@ if TYPE_CHECKING:
 
 def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
     """Register project management tools with the MCP server."""
-
-    @mcp.tool()
-    def list_data_science_projects(
-        limit: int | None = None,
-        offset: int = 0,
-        verbosity: str = "standard",
-    ) -> dict[str, Any]:
-        """List Data Science Projects in the cluster with pagination.
-
-        Returns projects (namespaces) that have the opendatahub.io/dashboard=true label,
-        indicating they are RHOAI Data Science Projects.
-
-        Args:
-            limit: Maximum number of items to return (None for all).
-            offset: Starting offset for pagination (default: 0).
-            verbosity: Response detail level - "minimal", "standard", or "full".
-                Use "minimal" for quick status checks (~87% token savings).
-
-        Returns:
-            Paginated list of projects with metadata.
-        """
-        client = ProjectClient(server.k8s)
-        projects = client.list_projects()
-
-        # Apply config limits
-        effective_limit = limit
-        if effective_limit is not None:
-            effective_limit = min(effective_limit, server.config.max_list_limit)
-        elif server.config.default_list_limit is not None:
-            effective_limit = server.config.default_list_limit
-
-        # Paginate
-        paginated, total = paginate(projects, offset, effective_limit)
-
-        # Format with verbosity
-        v = Verbosity.from_str(verbosity)
-        items = [ResponseBuilder.project_list_item(p, v) for p in paginated]
-
-        return PaginatedResponse.build(items, total, offset, effective_limit)
-
-    @mcp.tool()
-    def get_project_details(
-        name: str,
-        include_resources: bool = True,
-        verbosity: str = "full",
-    ) -> dict[str, Any]:
-        """Get detailed information about a Data Science Project.
-
-        Args:
-            name: The project (namespace) name.
-            include_resources: Whether to include resource counts (workbenches, models, etc.).
-            verbosity: Response detail level - "minimal", "standard", or "full".
-                Use "minimal" for quick status checks.
-
-        Returns:
-            Project information at the requested verbosity level.
-        """
-        client = ProjectClient(server.k8s)
-        project = client.get_project(name, include_summary=include_resources)
-
-        v = Verbosity.from_str(verbosity)
-        return ResponseBuilder.project_detail(project, v)
 
     @mcp.tool()
     def create_data_science_project(

@@ -45,7 +45,7 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
 **Please help me diagnose the problem:**
 
 1. **Get Job Status**
-   - Use `get_training_job` to see the current status and conditions
+   - Use `training(action="get")` to see the current status and conditions
    - Check if the job is Failed, Suspended, or stuck in Pending
 
 2. **Analyze Failure**
@@ -53,22 +53,22 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
    - This will check logs, events, and provide suggestions
 
 3. **Check Events**
-   - Use `get_job_events` to see Kubernetes events
+   - Use `training(action="events")` to see Kubernetes events
    - Look for: ImagePullBackOff, OOMKilled, FailedScheduling, etc.
 
 4. **Check Logs**
-   - Use `get_training_logs` to see trainer container output
-   - If container crashed, use `get_training_logs` with previous=True
+   - Use `training(action="logs")` to see trainer container output
+   - If container crashed, use `training(action="logs")` with previous=True
 
 5. **Common Issues:**
    - **OOM**: Reduce batch_size or use qlora method
    - **ImagePull**: Check container registry access
    - **Pending**: Use `get_cluster_resources` to check GPU availability
-   - **Storage**: Use `list_storage` to verify PVC status
+   - **Storage**: Use `list_resources(resource_type="storage")` to verify PVC status
 
 6. **Resolution**
-   - If fixable, use `suspend_training_job` then `resume_training_job`
-   - If job is corrupted, use `delete_training_job` and recreate with `train`
+   - If fixable, use `training(action="suspend")` then `training(action="resume")`
+   - If job is corrupted, use `training(action="delete")` and recreate with `training(action="create")`
 
 Please start with the job status and failure analysis."""
 
@@ -95,7 +95,7 @@ Please start with the job status and failure analysis."""
 **Please help me diagnose the problem:**
 
 1. **Get Workbench Status**
-   - Use `get_workbench` to see the current status and configuration
+   - Use `get_resource(resource_type="workbench")` to see the current status and configuration
    - Check the pod phase and any error conditions
 
 2. **Check Resource Status**
@@ -106,7 +106,7 @@ Please start with the job status and failure analysis."""
 
    **Stuck Starting:**
    - Check if image is pulling: look for ImagePullBackOff in status
-   - Check storage: use `list_storage` to verify PVC is Bound
+   - Check storage: use `list_resources(resource_type="storage")` to verify PVC is Bound
    - Check resources: GPU or memory may be unavailable
 
    **Not Accessible:**
@@ -115,11 +115,11 @@ Please start with the job status and failure analysis."""
 
    **Stopped Unexpectedly:**
    - Check if manually stopped (kubeflow-resource-stopped annotation)
-   - Use `start_workbench` to restart if stopped
+   - Use `manage_resource(action="start", resource_type="workbench")` to restart if stopped
 
 4. **Resolution**
-   - If stuck, try `stop_workbench` followed by `start_workbench`
-   - If persistent issues, may need to recreate with `delete_workbench`
+   - If stuck, try `manage_resource(action="stop", resource_type="workbench")` followed by `manage_resource(action="start", resource_type="workbench")`
+   - If persistent issues, may need to recreate with `manage_resource(action="delete", resource_type="workbench")`
      and `create_workbench`
 
 Please start by getting the workbench status."""
@@ -147,7 +147,7 @@ Please start by getting the workbench status."""
 **Please help me diagnose the problem:**
 
 1. **Get Model Status**
-   - Use `get_inference_service` to see the current status
+   - Use `get_resource(resource_type="model")` to see the current status
    - Check the Ready condition and any failure messages
 
 2. **Check Endpoint**
@@ -176,7 +176,7 @@ Please start by getting the workbench status."""
 
 5. **Resolution**
    - Redeploy with correct configuration using `deploy_model`
-   - If persistent issues, use `delete_inference_service` and redeploy
+   - If persistent issues, use `manage_resource(action="delete", resource_type="model")` and redeploy
 
 Please start by getting the inference service status."""
 
@@ -203,15 +203,15 @@ Please start by getting the inference service status."""
 **Please help me resolve this:**
 
 1. **Confirm OOM Issue**
-   - Use `get_job_events` to look for OOMKilled events
-   - Use `get_training_logs` with previous=True to see last output before crash
+   - Use `training(action="events")` to look for OOMKilled events
+   - Use `training(action="logs")` with previous=True to see last output before crash
 
 2. **Analyze Current Configuration**
-   - Use `get_training_job` to see current batch_size, method, and resources
+   - Use `training(action="get")` to see current batch_size, method, and resources
    - Use `get_job_spec` for the full job specification
 
 3. **Estimate Required Resources**
-   - Use `estimate_resources` with the same model_id and method
+   - Use `training(action="estimate")` with the same model_id and method
    - Compare estimated GPU memory vs. what was allocated
 
 4. **Mitigation Strategies (in order of preference):**
@@ -229,12 +229,12 @@ Please start by getting the inference service status."""
    - Enable in training config (trades compute for memory)
 
 5. **Create New Job**
-   - Use `delete_training_job` to clean up the failed job
-   - Use `train` with adjusted parameters
+   - Use `training(action="delete")` to clean up the failed job
+   - Use `training(action="create")` with adjusted parameters
    - Preview first, then confirm
 
 6. **Monitor New Job**
-   - Use `get_training_progress` to verify training starts
+   - Use `training(action="progress")` to verify training starts
    - Watch memory usage in early epochs
 
 Please start by confirming the OOM issue in events and logs."""

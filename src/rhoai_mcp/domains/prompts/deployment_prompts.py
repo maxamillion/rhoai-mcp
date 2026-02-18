@@ -59,8 +59,8 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
 
 2. **Verify Model Access**
    - If using S3 (s3://), ensure a data connection exists
-   - Use `list_data_connections` to check
-   - If using PVC (pvc://), verify the PVC exists with `list_storage`
+   - Use `list_resources(resource_type="connections")` to check
+   - If using PVC (pvc://), verify the PVC exists with `list_resources(resource_type="storage")`
 
 3. **Select Runtime**
    - Choose a runtime that supports {model_format}
@@ -79,7 +79,7 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
    - Configure replicas (min_replicas=1 to avoid cold starts)
 
 5. **Verify Deployment**
-   - Use `get_inference_service` to check the Ready status
+   - Use `get_resource(resource_type="model")` to check the Ready status
    - Use `get_model_endpoint` to get the inference URL
 
 6. **Test the Endpoint**
@@ -149,7 +149,7 @@ Please start by checking the available serving runtimes."""
    - 70B models: 4+ 80GB GPUs or quantized version
 
 7. **Verify Deployment**
-   - Use `get_inference_service` to monitor startup
+   - Use `get_resource(resource_type="model")` to monitor startup
    - LLMs may take several minutes to load
    - Use `get_model_endpoint` once ready
 
@@ -182,7 +182,7 @@ Please start by checking GPU availability."""
 **Please help me:**
 
 1. **Get Endpoint Information**
-   - Use `get_inference_service` to check the model status
+   - Use `get_resource(resource_type="model")` to check the model status
    - Verify the model shows Ready=True
    - Use `get_model_endpoint` to get the inference URL
 
@@ -216,7 +216,7 @@ Please start by checking GPU availability."""
 5. **Troubleshooting**
    - If endpoint not responding, check replica count
    - If min_replicas=0, first request triggers scale-up
-   - Use `get_inference_service` to see current replicas
+   - Use `get_resource(resource_type="model")` to see current replicas
 
 Please start by getting the endpoint information."""
 
@@ -243,7 +243,7 @@ Please start by getting the endpoint information."""
 **Please help me:**
 
 1. **Check Current Configuration**
-   - Use `get_inference_service` to see current replica settings
+   - Use `get_resource(resource_type="model")` to see current replica settings
    - Note current min_replicas and max_replicas
 
 2. **Scaling Options:**
@@ -264,11 +264,11 @@ Please start by getting the endpoint information."""
 
 3. **Apply Scaling**
    - Currently requires redeploying with new settings
-   - Use `delete_inference_service` then `deploy_model`
+   - Use `manage_resource(action="delete", resource_type="model")` then `deploy_model`
    - Or use kubectl/oc to patch the InferenceService directly
 
 4. **Verify Scaling**
-   - Use `get_inference_service` to confirm replica changes
+   - Use `get_resource(resource_type="model")` to confirm replica changes
    - Check that pods are running with expected count
 
 5. **Resource Considerations**

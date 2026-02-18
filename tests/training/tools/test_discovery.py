@@ -34,91 +34,11 @@ class TestDiscoveryTools:
     def test_register_tools_registers_all_discovery_tools(
         self, mock_mcp: MagicMock, mock_server: MagicMock
     ) -> None:
-        """Test that all discovery tools are registered."""
+        """Test that discovery tools are registered."""
         register_tools(mock_mcp, mock_server)
 
-        # Check that tool decorator was called for each tool
-        assert mock_mcp.tool.call_count >= 4  # At least 4 discovery tools
-
-    def test_list_training_jobs_empty(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
-        """Test listing training jobs when none exist."""
-        # Setup mock to return empty list
-        mock_server.k8s.list_resources.return_value = []
-
-        # Get the registered tool
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["list_training_jobs"](namespace="default")
-
-        assert result["items"] == []
-        assert result["total"] == 0
-        assert result["namespace"] == "default"
-
-    def test_list_training_jobs_with_results(
-        self, mock_mcp: MagicMock, mock_server: MagicMock
-    ) -> None:
-        """Test listing training jobs returns job info."""
-        mock_server.k8s.list_resources.return_value = [
-            _make_mock_resource("job-1", "default"),
-            _make_mock_resource("job-2", "default"),
-        ]
-
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["list_training_jobs"](namespace="default")
-
-        assert result["total"] == 2
-        assert len(result["items"]) == 2
-        assert result["items"][0]["name"] == "job-1"
-
-    def test_get_training_job(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
-        """Test getting a specific training job."""
-        mock_server.k8s.get.return_value = _make_mock_resource(
-            "my-job",
-            "training",
-            spec={
-                "modelConfig": {"name": "meta-llama/Llama-2-7b-hf"},
-                "datasetConfig": {"name": "tatsu-lab/alpaca"},
-            },
-        )
-
-        tools = {}
-
-        def capture_tool():
-            def decorator(f):
-                tools[f.__name__] = f
-                return f
-
-            return decorator
-
-        mock_mcp.tool = capture_tool
-        register_tools(mock_mcp, mock_server)
-
-        result = tools["get_training_job"](namespace="training", name="my-job")
-
-        assert result["name"] == "my-job"
-        assert result["model_id"] == "meta-llama/Llama-2-7b-hf"
-        assert result["dataset_id"] == "tatsu-lab/alpaca"
+        # get_cluster_resources and list_training_runtimes
+        assert mock_mcp.tool.call_count >= 2
 
     def test_get_cluster_resources(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Test getting cluster resources."""

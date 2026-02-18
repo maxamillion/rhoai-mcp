@@ -41,7 +41,7 @@ def register_prompts(mcp: FastMCP, server: RHOAIServer) -> None:  # noqa: ARG001
    - This shows project count, workbench status, model deployments, and resources
 
 2. **Available Projects**
-   - Use `list_data_science_projects` to see all Data Science Projects
+   - Use `list_resources(resource_type="projects")` to see all Data Science Projects
    - For each interesting project, use `project_summary` to get details
 
 3. **GPU and Accelerator Availability**
@@ -82,23 +82,23 @@ Please start with the cluster summary to get an overview."""
    - This shows workbench, model, pipeline, and storage counts
 
 2. **Workbenches**
-   - Use `list_workbenches` to see all notebook environments
+   - Use `list_resources(resource_type="workbenches")` to see all notebook environments
    - For running workbenches, use `get_workbench_url` to get access URLs
 
 3. **Deployed Models**
-   - Use `list_inference_services` to see deployed models
+   - Use `list_resources(resource_type="models")` to see deployed models
    - Use `get_model_endpoint` to get inference URLs for each model
 
 4. **Training Jobs**
-   - Use `list_training_jobs` to see current and past training jobs
-   - Use `get_training_progress` for any active jobs
+   - Use `training(action="list")` to see current and past training jobs
+   - Use `training(action="progress")` for any active jobs
 
 5. **Data Connections**
-   - Use `list_data_connections` to see configured S3 connections
+   - Use `list_resources(resource_type="connections")` to see configured S3 connections
    - These provide access to external data sources
 
 6. **Storage**
-   - Use `list_storage` to see PersistentVolumeClaims
+   - Use `list_resources(resource_type="storage")` to see PersistentVolumeClaims
    - Check storage capacity and what's available
 
 7. **Pipeline Server**
@@ -129,11 +129,11 @@ Please start with the project summary to get an overview."""
    - Check training jobs and inference services that are using GPUs
 
 3. **GPU-capable Projects**
-   - Use `list_data_science_projects` to find projects
-   - Use `list_workbenches` per project to see GPU allocations
+   - Use `list_resources(resource_type="projects")` to find projects
+   - Use `list_resources(resource_type="workbenches")` per project to see GPU allocations
 
 4. **For Training**
-   - Use `estimate_resources` with your model to see GPU requirements
+   - Use `training(action="estimate")` with your model to see GPU requirements
    - Compare requirements against available resources
 
 5. **Recommendations**
@@ -162,16 +162,16 @@ Please start by checking the cluster GPU resources."""
    - This shows workbench count, training jobs, and deployed models
 
 2. **Active Training Jobs**
-   - For each project with training, use `list_training_jobs`
-   - Use `get_training_progress` for jobs in "Running" status
+   - For each project with training, use `training(action="list")`
+   - Use `training(action="progress")` for jobs in "Running" status
    - Check estimated time remaining
 
 3. **Running Workbenches**
-   - Use `list_workbenches` per project with verbosity="minimal"
+   - Use `list_resources(resource_type="workbenches")` per project with verbosity="minimal"
    - Look for workbenches with status "Running"
 
 4. **Deployed Models**
-   - Use `list_inference_services` per project
+   - Use `list_resources(resource_type="models")` per project
    - Check which models are ready to serve traffic
 
 5. **Resource Consumption**

@@ -32,10 +32,10 @@ class TestTroubleshootingPrompts:
 
         assert "my-project" in result
         assert "failed-job" in result
-        assert "get_training_job" in result
+        assert "training(action=\"get\")" in result
         assert "analyze_training_failure" in result
-        assert "get_job_events" in result
-        assert "get_training_logs" in result
+        assert "training(action=\"events\")" in result
+        assert "training(action=\"logs\")" in result
 
     def test_troubleshoot_training_has_description(
         self, mock_mcp: MagicMock, mock_server: MagicMock
@@ -58,7 +58,7 @@ class TestTroubleshootingPrompts:
 
         assert "my-project" in result
         assert "my-notebook" in result
-        assert "get_workbench" in result
+        assert "get_resource(resource_type=\"workbench\")" in result
         assert "resource_status" in result
 
     def test_troubleshoot_model_output(
@@ -72,7 +72,7 @@ class TestTroubleshootingPrompts:
 
         assert "my-project" in result
         assert "my-model" in result
-        assert "get_inference_service" in result
+        assert "get_resource(resource_type=\"model\")" in result
         assert "get_model_endpoint" in result
 
     def test_analyze_oom_output(
@@ -87,7 +87,7 @@ class TestTroubleshootingPrompts:
         assert "my-project" in result
         assert "oom-job" in result
         assert "OOMKilled" in result or "OOM" in result
-        assert "get_job_events" in result
-        assert "estimate_resources" in result
+        assert "training(action=\"events\")" in result
+        assert "training(action=\"estimate\")" in result
         # Should suggest mitigation strategies
         assert "batch_size" in result or "qlora" in result

@@ -32,7 +32,7 @@ class TestExplorationPrompts:
 
         # Should reference relevant tools
         assert "cluster_summary" in result
-        assert "list_data_science_projects" in result
+        assert "list_resources(resource_type=\"projects\")" in result
         assert "get_cluster_resources" in result
 
     def test_explore_cluster_has_description(
@@ -56,8 +56,8 @@ class TestExplorationPrompts:
 
         assert "my-ml-project" in result
         assert "project_summary" in result
-        assert "list_workbenches" in result
-        assert "list_inference_services" in result
+        assert "list_resources(resource_type=\"workbenches\")" in result
+        assert "list_resources(resource_type=\"models\")" in result
 
     def test_find_gpus_output(
         self, mock_mcp: MagicMock, mock_server: MagicMock
@@ -70,7 +70,7 @@ class TestExplorationPrompts:
 
         assert "get_cluster_resources" in result
         assert "GPU" in result or "gpu" in result
-        assert "estimate_resources" in result
+        assert "training(action=\"estimate\")" in result
 
     def test_whats_running_output(
         self, mock_mcp: MagicMock, mock_server: MagicMock
@@ -82,5 +82,5 @@ class TestExplorationPrompts:
         result = prompt_func()
 
         assert "cluster_summary" in result
-        assert "list_training_jobs" in result
-        assert "list_workbenches" in result
+        assert "training(action=\"list\")" in result
+        assert "list_resources(resource_type=\"workbenches\")" in result

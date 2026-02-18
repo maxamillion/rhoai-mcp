@@ -91,7 +91,7 @@ class TestSuggestTools:
 
         assert result["category"] == "training"
         assert "prepare_training" in result["workflow"]
-        assert "train" in result["workflow"]
+        assert "training" in result["workflow"]
 
     def test_suggest_deploy_intent(self, mock_mcp: MagicMock, mock_server: MagicMock) -> None:
         """Deploy intent returns inference workflow."""
@@ -130,8 +130,10 @@ class TestSuggestTools:
 
         result = suggest_tools("train a model", {"namespace": "my-project"})
 
-        # Check that namespace from context is used
-        assert result["example_calls"][0]["args"]["namespace"] == "my-project"
+        # Check that namespace from context is used in some example call
+        assert any(
+            call["args"].get("namespace") == "my-project" for call in result["example_calls"]
+        )
 
     def test_suggest_unknown_intent_defaults_to_discovery(
         self, mock_mcp: MagicMock, mock_server: MagicMock

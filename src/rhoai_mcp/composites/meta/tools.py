@@ -19,15 +19,13 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
         "description": "Model fine-tuning operations",
         "tools": [
             "prepare_training",
-            "train",
-            "get_training_progress",
-            "get_training_logs",
+            "training",
             "analyze_training_failure",
         ],
         "typical_workflow": [
             "prepare_training",
-            "train (with confirmed=True)",
-            "get_training_progress",
+            "training(action='create', confirmed=True)",
+            "training(action='progress')",
         ],
     },
     "inference": {
@@ -37,7 +35,6 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "deploy_model",
             "get_model_endpoint",
             "test_model_endpoint",
-            "recommend_serving_runtime",
         ],
         "typical_workflow": [
             "prepare_model_deployment",
@@ -48,10 +45,9 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     "workbenches": {
         "description": "Jupyter notebook environments",
         "tools": [
-            "list_workbenches",
             "create_workbench",
-            "start_workbench",
-            "stop_workbench",
+            "list_resources",
+            "manage_resource",
             "get_workbench_url",
         ],
     },
@@ -60,8 +56,8 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
         "tools": [
             "diagnose_resource",
             "analyze_training_failure",
-            "get_job_events",
-            "get_training_logs",
+            "training(action='events')",
+            "training(action='logs')",
         ],
     },
     "resources": {
@@ -76,10 +72,9 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     "storage": {
         "description": "Storage and data connections",
         "tools": [
-            "list_storage",
+            "list_resources",
             "create_storage",
             "setup_training_storage",
-            "list_data_connections",
             "create_s3_data_connection",
         ],
     },
@@ -91,9 +86,9 @@ INTENT_PATTERNS = [
     {
         "patterns": ["train", "fine-tune", "finetune", "lora", "qlora"],
         "category": "training",
-        "workflow": ["prepare_training", "train"],
+        "workflow": ["prepare_training", "training"],
         "explanation": "Training workflow: First use prepare_training() to check prerequisites, "
-        "then train() with confirmed=True to start the job.",
+        "then training(action='create', confirmed=True) to start the job.",
     },
     {
         "patterns": ["deploy", "serve", "inference", "predict"],
@@ -119,15 +114,16 @@ INTENT_PATTERNS = [
     {
         "patterns": ["notebook", "workbench", "jupyter", "code"],
         "category": "workbenches",
-        "workflow": ["list_workbenches", "create_workbench"],
-        "explanation": "Use list_workbenches() to see existing notebooks, "
+        "workflow": ["list_resources", "create_workbench"],
+        "explanation": "Use list_resources(resource_type='workbenches') to see existing notebooks, "
         "create_workbench() to create a new one.",
     },
     {
         "patterns": ["storage", "pvc", "volume", "data connection", "s3"],
         "category": "storage",
-        "workflow": ["list_storage", "list_data_connections"],
-        "explanation": "Use list_storage() for PVCs, list_data_connections() for S3 connections.",
+        "workflow": ["list_resources"],
+        "explanation": "Use list_resources(resource_type='storage') for PVCs, "
+        "list_resources(resource_type='connections') for S3 connections.",
     },
 ]
 
@@ -199,11 +195,12 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:  # noqa: ARG001
                         },
                     }
                 )
-            elif tool == "train":
+            elif tool == "training":
                 example_calls.append(
                     {
                         "tool": tool,
                         "args": {
+                            "action": "create",
                             "namespace": namespace,
                             "model_id": "meta-llama/Llama-2-7b-hf",
                             "dataset_id": "tatsu-lab/alpaca",

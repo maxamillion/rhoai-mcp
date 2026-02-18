@@ -113,7 +113,7 @@ class TestDeploymentPrompts:
 
         assert "my-project" in result
         assert "my-model" in result
-        assert "get_inference_service" in result
+        assert "get_resource(resource_type=\"model\")" in result
         assert "get_model_endpoint" in result
         # Should include example request formats
         assert "json" in result.lower() or "JSON" in result
@@ -129,7 +129,7 @@ class TestDeploymentPrompts:
 
         assert "my-project" in result
         assert "my-model" in result
-        assert "get_inference_service" in result
+        assert "get_resource(resource_type=\"model\")" in result
         assert "replica" in result.lower()
         # Should mention scale-to-zero option
         assert "zero" in result.lower() or "min_replicas=0" in result

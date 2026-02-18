@@ -63,8 +63,8 @@ class TestTrainingPrompts:
         )
 
         # Should reference relevant tools
-        assert "check_training_prerequisites" in result
-        assert "estimate_resources" in result
+        assert "training(action=\"prerequisites\")" in result
+        assert "training(action=\"estimate\")" in result
         assert "train" in result
 
     def test_monitor_training_output(
@@ -78,9 +78,9 @@ class TestTrainingPrompts:
 
         assert "my-project" in result
         assert "llama-finetune" in result
-        assert "get_training_job" in result
-        assert "get_training_progress" in result
-        assert "get_training_logs" in result
+        assert "training(action=\"get\")" in result
+        assert "training(action=\"progress\")" in result
+        assert "training(action=\"logs\")" in result
 
     def test_resume_training_output(
         self, mock_mcp: MagicMock, mock_server: MagicMock
@@ -93,8 +93,8 @@ class TestTrainingPrompts:
 
         assert "my-project" in result
         assert "llama-finetune" in result
-        assert "resume_training_job" in result
-        assert "manage_checkpoints" in result
+        assert "training(action=\"resume\")" in result
+        assert "training(action=\"checkpoints\")" in result
 
     def test_train_model_default_method(
         self, mock_mcp: MagicMock, mock_server: MagicMock

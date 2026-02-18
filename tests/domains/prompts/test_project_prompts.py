@@ -93,8 +93,8 @@ class TestProjectPrompts:
         result = prompt_func(namespace="my-project")
 
         assert "my-project" in result
-        assert "list_data_connections" in result
+        assert "list_resources(resource_type=\"connections\")" in result
         assert "create_s3_data_connection" in result
-        assert "get_data_connection" in result
+        assert "get_resource(resource_type=\"connection\")" in result
         # Should mention required credentials
         assert "Access Key" in result or "access_key" in result

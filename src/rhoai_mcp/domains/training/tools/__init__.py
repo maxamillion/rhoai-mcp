@@ -5,6 +5,11 @@ training tool submodules (domain-specific only).
 
 Composite training tools (planning, unified, storage) have been moved to
 rhoai_mcp.composites.training and are registered separately.
+
+Most training operations are consolidated into the unified training() tool
+in composites/training/unified.py. Domain tools here provide only non-duplicated
+functionality (cluster resources, runtimes, container training, failure analysis,
+wait-for-completion, job spec).
 """
 
 from __future__ import annotations
@@ -31,7 +36,6 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     from rhoai_mcp.domains.training.tools import (
         discovery,
         lifecycle,
-        monitoring,
         runtimes,
         training,
     )
@@ -40,6 +44,5 @@ def register_tools(mcp: FastMCP, server: RHOAIServer) -> None:
     # Composite tools are in rhoai_mcp.composites.training
     discovery.register_tools(mcp, server)
     lifecycle.register_tools(mcp, server)
-    monitoring.register_tools(mcp, server)
     runtimes.register_tools(mcp, server)
     training.register_tools(mcp, server)

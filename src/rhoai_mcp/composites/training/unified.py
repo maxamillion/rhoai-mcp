@@ -311,6 +311,7 @@ def _action_progress(
         "loss": job.progress.loss,
         "learning_rate": job.progress.learning_rate,
         "throughput": job.progress.throughput,
+        "gradient_norm": job.progress.gradient_norm,
         "eta_seconds": job.progress.eta_seconds,
     }
 
@@ -495,11 +496,14 @@ def _action_logs(
         namespace, name, container=container, tail_lines=tail_lines, previous=previous
     )
 
+    issues = _analyze_logs(logs)
+
     return {
         "action": "logs",
         "name": name,
         "container": container,
         "logs": logs,
+        "issues": issues if issues else None,
         "lines_returned": len(logs.split("\n")) if logs else 0,
     }
 
@@ -514,6 +518,29 @@ def _action_events(server: RHOAIServer, namespace: str | None, name: str | None)
 
     warnings = [e for e in events if e.get("type") == "Warning"]
 
+    issues: list[str] = []
+    suggestions: list[str] = []
+
+    for event in warnings:
+        reason = event.get("reason", "")
+        message = event.get("message", "")
+
+        if "OOMKilled" in reason or "OutOfMemory" in message:
+            issues.append("Out of memory - pod was killed due to memory limits")
+            suggestions.append("Increase memory limits or reduce batch size")
+
+        if "FailedScheduling" in reason:
+            if "gpu" in message.lower():
+                issues.append("Insufficient GPU resources available")
+                suggestions.append("Wait for GPUs to become available or reduce GPU requirements")
+            else:
+                issues.append("Pod scheduling failed")
+                suggestions.append("Check node resources and taints")
+
+        if "ImagePullBackOff" in reason or "ErrImagePull" in reason:
+            issues.append("Failed to pull container image")
+            suggestions.append("Verify image exists and credentials are configured")
+
     return {
         "action": "events",
         "name": name,
@@ -521,6 +548,8 @@ def _action_events(server: RHOAIServer, namespace: str | None, name: str | None)
         "events": events,
         "has_warnings": len(warnings) > 0,
         "warning_count": len(warnings),
+        "issues": issues if issues else None,
+        "suggestions": suggestions if suggestions else None,
     }
 
 
@@ -805,3 +834,45 @@ def _action_prerequisites(
         "actions_needed": actions_needed if actions_needed else None,
         "ready_to_train": all_passed,
     }
+
+
+def _analyze_logs(logs: str) -> list[str]:
+    """Analyze training logs for common issues."""
+    issues: list[str] = []
+
+    if not logs:
+        return issues
+
+    log_lower = logs.lower()
+
+    # CUDA/GPU issues
+    if "cuda out of memory" in log_lower or "oom" in log_lower:
+        issues.append(
+            "CUDA out of memory detected. Consider reducing batch size "
+            "or using gradient checkpointing."
+        )
+
+    # NaN/Inf loss
+    if "nan" in log_lower and "loss" in log_lower:
+        issues.append(
+            "NaN loss detected. This may indicate learning rate is too high or data issues."
+        )
+
+    if "inf" in log_lower and ("loss" in log_lower or "gradient" in log_lower):
+        issues.append(
+            "Infinite values detected in training. Check learning rate and data preprocessing."
+        )
+
+    # Gradient issues
+    if "gradient overflow" in log_lower or "gradient underflow" in log_lower:
+        issues.append("Gradient overflow/underflow detected. Consider using gradient clipping.")
+
+    # Connection issues
+    if "connection refused" in log_lower or "connection reset" in log_lower:
+        issues.append("Network connection issues detected. Check distributed training setup.")
+
+    # Import errors
+    if "modulenotfounderror" in log_lower or "importerror" in log_lower:
+        issues.append("Missing Python module. Verify runtime image has all required packages.")
+
+    return issues

@@ -470,8 +470,10 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
         resource_type: str,
         namespace: str | None = None,
         limit: int | None = None,
+        offset: int = 0,
+        verbosity: str = "standard",
     ) -> dict:
-        """List any RHOAI resource type.
+        """List any RHOAI resource type with configurable detail level.
 
         Generic resource lister that dispatches to the appropriate domain.
         Use this instead of domain-specific list tools for simpler workflows.
@@ -481,29 +483,33 @@ def register_tools(mcp: FastMCP, server: "RHOAIServer") -> None:
                 "training_jobs", "connections", "storage", or "pipelines".
             namespace: The project (namespace) name. Required except for "projects".
             limit: Maximum number of items to return.
+            offset: Starting offset for pagination (default: 0).
+            verbosity: Response detail level - "names" for names only (most compact),
+                "minimal", "standard", or "full" for rich data with pagination.
 
         Returns:
             Paginated list of resources.
         """
-        names_result = _list_resource_names(server, resource_type, namespace)
+        # "names" verbosity returns the legacy compact format
+        if verbosity == "names":
+            names_result = _list_resource_names(server, resource_type, namespace)
+            if names_result.error:
+                return {"error": names_result.error, "valid_types": names_result.valid_types}
+            names = names_result.names
+            if limit is not None:
+                if limit < 0:
+                    return {"error": "limit must be >= 0"}
+                names = names[:limit]
+            return {
+                "type": names_result.type,
+                "namespace": namespace,
+                "count": len(names),
+                "total": names_result.count,
+                "names": names,
+            }
 
-        if names_result.error:
-            return {"error": names_result.error, "valid_types": names_result.valid_types}
-
-        # Apply limit if specified
-        names = names_result.names
-        if limit is not None:
-            if limit < 0:
-                return {"error": "limit must be >= 0"}
-            names = names[:limit]
-
-        return {
-            "type": names_result.type,
-            "namespace": namespace,
-            "count": len(names),
-            "total": names_result.count,
-            "names": names,
-        }
+        # Rich verbosity: return full resource data with ResponseBuilder
+        return _list_resources_rich(server, resource_type, namespace, limit, offset, verbosity)
 
     @mcp.tool()
     def manage_resource(
@@ -1145,3 +1151,122 @@ def _list_resource_names(
             "runtimes",
         ],
     )
+
+
+def _list_resources_rich(
+    server: "RHOAIServer",
+    resource_type: str,
+    namespace: str | None,
+    limit: int | None,
+    offset: int,
+    verbosity: str,
+) -> dict:
+    """List resources with rich data using ResponseBuilder."""
+    from rhoai_mcp.utils.response import (
+        PaginatedResponse,
+        ResponseBuilder,
+        Verbosity,
+        paginate,
+    )
+
+    v = Verbosity.from_str(verbosity)
+    resource_type = resource_type.lower()
+
+    # Apply config limits
+    effective_limit = limit
+    if effective_limit is not None:
+        effective_limit = min(effective_limit, server.config.max_list_limit)
+    elif server.config.default_list_limit is not None:
+        effective_limit = server.config.default_list_limit
+
+    if resource_type in ("project", "projects"):
+        from rhoai_mcp.domains.projects.client import ProjectClient
+
+        proj_client = ProjectClient(server.k8s)
+        projects = proj_client.list_projects()
+        paginated, total = paginate(projects, offset, effective_limit)
+        items = [ResponseBuilder.project_list_item(p, v) for p in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "projects"
+        return result
+
+    if namespace is None:
+        return {"error": f"namespace is required for resource type '{resource_type}'"}
+
+    if resource_type in ("workbench", "workbenches", "notebook", "notebooks"):
+        from rhoai_mcp.domains.notebooks.client import NotebookClient
+
+        nb_client = NotebookClient(server.k8s)
+        workbenches = nb_client.list_workbenches(namespace)
+        paginated, total = paginate(workbenches, offset, effective_limit)
+        items = [ResponseBuilder.workbench_list_item(wb, v) for wb in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "workbenches"
+        result["namespace"] = namespace
+        return result
+
+    if resource_type in ("model", "models", "inferenceservice", "inferenceservices"):
+        from rhoai_mcp.domains.inference.client import InferenceClient
+
+        inf_client = InferenceClient(server.k8s)
+        models = inf_client.list_inference_services(namespace)
+        paginated, total = paginate(models, offset, effective_limit)
+        items = [ResponseBuilder.inference_service_list_item(m, v) for m in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "models"
+        result["namespace"] = namespace
+        return result
+
+    if resource_type in ("storage", "pvc", "pvcs"):
+        from rhoai_mcp.domains.storage.client import StorageClient
+
+        st_client = StorageClient(server.k8s)
+        storage = st_client.list_storage(namespace)
+        paginated, total = paginate(storage, offset, effective_limit)
+        items = [ResponseBuilder.storage_list_item(s, v) for s in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "storage"
+        result["namespace"] = namespace
+        return result
+
+    if resource_type in ("connection", "connections", "data_connection", "data_connections"):
+        from rhoai_mcp.domains.connections.client import ConnectionClient
+
+        conn_client = ConnectionClient(server.k8s)
+        connections = conn_client.list_data_connections(namespace)
+        paginated, total = paginate(connections, offset, effective_limit)
+        items = [ResponseBuilder.data_connection_list_item(c, v) for c in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "connections"
+        result["namespace"] = namespace
+        return result
+
+    if resource_type in (
+        "training",
+        "training_job",
+        "training_jobs",
+        "trainjob",
+        "trainjobs",
+    ):
+        from rhoai_mcp.domains.training.client import TrainingClient
+
+        tr_client = TrainingClient(server.k8s)
+        jobs = tr_client.list_training_jobs(namespace)
+        paginated, total = paginate(jobs, offset, effective_limit)
+        items = [ResponseBuilder.training_job_list_item(j, v) for j in paginated]
+        result = PaginatedResponse.build(items, total, offset, effective_limit)
+        result["type"] = "training_jobs"
+        result["namespace"] = namespace
+        return result
+
+    return {
+        "error": f"Unknown resource type: {resource_type}",
+        "valid_types": [
+            "projects",
+            "workbenches",
+            "models",
+            "storage",
+            "connections",
+            "training_jobs",
+        ],
+    }
