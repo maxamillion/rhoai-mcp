@@ -1,0 +1,56 @@
+name: MCP Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent_model:
+        description: "Agent LLM model"
+        required: false
+        default: "gpt-4o-mini"
+        type: string
+      judge_model:
+        description: "Judge LLM model for DeepEval metrics"
+        required: false
+        default: "gpt-4o"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: MCP Eval (Mock Cluster)
+    runs-on: ubuntu-latest
+
+    env:
+      RHOAI_EVAL_LLM_MODEL: ${{ inputs.agent_model || 'gpt-4o-mini' }}
+      RHOAI_EVAL_LLM_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      RHOAI_EVAL_EVAL_MODEL: ${{ inputs.judge_model || 'gpt-4o' }}
+      RHOAI_EVAL_EVAL_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      RHOAI_EVAL_CLUSTER_MODE: mock
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group eval
+
+      - name: Run mock evaluations
+        run: uv run pytest evals/ -v -m "eval and not live" --tb=short --junitxml=eval-results.xml
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results.xml
