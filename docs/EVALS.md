@@ -125,6 +125,18 @@ evals/
 │   ├── google_provider.py            # Google GenAI/Vertex provider
 │   ├── judge.py                      # DeepEvalBaseLLM subclasses per provider
 │   └── factory.py                    # create_agent_provider(), create_judge_llm()
+├── reporting/
+│   ├── __init__.py                   # Exports EvalRecorder, evaluate_and_record
+│   ├── models.py                     # Dataclasses for JSONL schema
+│   ├── recorder.py                   # EvalRecorder + evaluate_and_record wrapper
+│   ├── reader.py                     # JSONL loading
+│   ├── formatting.py                 # Table rendering (terminal + markdown)
+│   ├── comparison.py                 # Provider comparison report
+│   ├── trending.py                   # Score trend report
+│   ├── cli.py                        # CLI (summary, compare, trend)
+│   └── __main__.py                   # python -m entry point
+├── results/
+│   └── eval_history.jsonl            # Persisted eval results (gitignored)
 ├── mock_k8s/
 │   ├── cluster_state.py              # ClusterState dataclass + default data
 │   └── mock_client.py                # MockK8sClient (subclasses K8sClient)
@@ -220,14 +232,20 @@ The `MockK8sClient` subclasses the real `K8sClient` and overrides all methods to
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import pytest
-from deepeval import evaluate
 
 from evals.agent import MCPAgent
 from evals.config import EvalConfig
 from evals.deepeval_helpers import build_mcp_server, result_to_conversational_test_case
 from evals.mcp_harness import MCPHarness
 from evals.metrics.config import create_multi_turn_mcp_use_metric, create_task_completion_metric
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from evals.agent import AgentResult
 
 
 @pytest.mark.eval
@@ -245,6 +263,7 @@ class TestMyScenario:
         eval_config: EvalConfig,
         harness: MCPHarness,
         agent: MCPAgent,
+        evaluate_and_record: Callable[[str, AgentResult, list[Any], list[Any]], Any],
     ) -> None:
         """Agent should <expected behavior>."""
         result = await agent.run(self.TASK)
@@ -262,11 +281,11 @@ class TestMyScenario:
             create_task_completion_metric(eval_config),
         ]
 
-        eval_result = evaluate(
+        eval_result = evaluate_and_record(
+            scenario="my_scenario",
+            agent_result=result,
             test_cases=[test_case],
             metrics=metrics,
-            run_async=True,
-            print_results=True,
         )
 
         for metric_result in eval_result.test_results[0].metrics_data:
@@ -403,7 +422,7 @@ The GitHub Actions workflow (`.github/workflows/eval.yml`) runs mock-cluster eva
   - Anthropic: `ANTHROPIC_API_KEY`
   - Google: `GOOGLE_API_KEY`
   - Vertex AI: `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`
-- **Output:** JUnit XML results uploaded as an artifact
+- **Output:** JUnit XML results, JSONL history, and markdown summary uploaded as artifacts
 
 To trigger manually from the GitHub UI or CLI:
 
@@ -418,6 +437,81 @@ gh workflow run eval.yml \
   --field judge_provider=openai \
   --field judge_model=gpt-4o
 ```
+
+### CI Result Persistence
+
+Eval results are persisted across CI runs using GitHub Actions cache:
+
+1. **Before evals run**, the workflow restores `evals/results/eval_history.jsonl` from cache using the key pattern `eval-results-{branch}-{run_id}`, falling back to `eval-results-{branch}-` (latest from the same branch), then `eval-results-main-` (baseline from main).
+
+2. **During evals**, each scenario appends a JSONL record to the history file automatically via the `evaluate_and_record` fixture.
+
+3. **After evals**, the workflow generates a summary report and score trend table, posting both to the GitHub Actions step summary. The updated JSONL file is saved back to cache via the `actions/cache` post-action.
+
+This means PR runs can see and compare against results from previous `main` branch runs, making regressions immediately visible in the step summary.
+
+## Result Reporting
+
+Eval results are automatically recorded to `evals/results/eval_history.jsonl` during each run. Each scenario produces one JSONL line containing the run ID, git metadata, environment config, metric scores, and timing data.
+
+### Viewing Results
+
+Three Make targets provide terminal reports:
+
+```bash
+# Summary of the latest eval run (all scenarios in a table)
+make eval-report
+
+# Compare scores across different providers/models
+make eval-compare
+
+# Show score trends over time
+make eval-trend
+```
+
+### CLI Options
+
+The reporting CLI supports additional filtering and formatting:
+
+```bash
+# Summary for a specific run ID
+uv run --group eval python -m evals.reporting.cli summary --run-id a1b2c3d4e5f6
+
+# Compare a specific scenario across providers
+uv run --group eval python -m evals.reporting.cli compare --scenario cluster_exploration
+
+# Trend for a specific provider, last 5 records, markdown output
+uv run --group eval python -m evals.reporting.cli trend --provider openai/gpt-4o --last 5 --format markdown
+```
+
+### JSONL Record Format
+
+Each line in `eval_history.jsonl` is a self-contained JSON object:
+
+```json
+{
+  "run_id": "a1b2c3d4e5f6",
+  "timestamp": "2026-02-18T14:30:00+00:00",
+  "scenario": "cluster_exploration",
+  "git": {"commit": "b9d6777", "branch": "main"},
+  "environment": {
+    "llm_provider": "openai", "llm_model": "gpt-4o",
+    "eval_provider": "openai", "eval_model": "gpt-4o",
+    "cluster_mode": "mock",
+    "mcp_use_threshold": 0.5, "task_completion_threshold": 0.6,
+    "max_agent_turns": 20
+  },
+  "metrics": [
+    {"name": "MultiTurnMCPUseMetric", "score": 0.85, "success": true, "threshold": 0.5, "reason": "..."}
+  ],
+  "turns": 5,
+  "tool_names_used": ["list_projects", "list_workbenches"],
+  "passed": true,
+  "duration_seconds": 12.3
+}
+```
+
+The file is append-only and gitignored locally. No external dependencies are required for reporting — all formatting uses stdlib only.
 
 ## Troubleshooting
 

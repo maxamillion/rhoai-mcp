@@ -208,6 +208,7 @@ __marimo__/
 
 .mcp.json
 
-# Eval reports and env
+# Eval reports, results, and env
 evals/reports/
+evals/results/
 .env.eval

@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from evals.config import ClusterMode, EvalConfig
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
-    from evals.agent import MCPAgent
+    from evals.agent import AgentResult, MCPAgent
     from evals.mcp_harness import MCPHarness
+    from evals.reporting.recorder import EvalRecorder
 
 
 @pytest.fixture(scope="session")
@@ -25,6 +26,14 @@ def eval_config() -> EvalConfig:
 def is_mock(eval_config: EvalConfig) -> bool:
     """Whether we're running against a mock cluster."""
     return eval_config.cluster_mode == ClusterMode.MOCK
+
+
+@pytest.fixture(scope="session")
+def eval_recorder(eval_config: EvalConfig) -> EvalRecorder:
+    """Session-scoped eval result recorder."""
+    from evals.reporting.recorder import EvalRecorder
+
+    return EvalRecorder(eval_config)
 
 
 @pytest.fixture
@@ -42,3 +51,27 @@ async def agent(eval_config: EvalConfig, harness: MCPHarness) -> MCPAgent:
     from evals.agent import MCPAgent
 
     return MCPAgent(config=eval_config, harness=harness)
+
+
+@pytest.fixture
+def evaluate_and_record(
+    eval_recorder: EvalRecorder,
+) -> Callable[[str, AgentResult, list[Any], list[Any]], Any]:
+    """Return a callable that wraps deepeval.evaluate() with recording."""
+    from evals.reporting.recorder import evaluate_and_record as _evaluate_and_record
+
+    def _wrapper(
+        scenario: str,
+        agent_result: AgentResult,
+        test_cases: list[Any],
+        metrics: list[Any],
+    ) -> Any:
+        return _evaluate_and_record(
+            recorder=eval_recorder,
+            scenario=scenario,
+            agent_result=agent_result,
+            test_cases=test_cases,
+            metrics=metrics,
+        )
+
+    return _wrapper

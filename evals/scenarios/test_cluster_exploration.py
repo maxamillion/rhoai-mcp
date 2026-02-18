@@ -6,14 +6,20 @@ check workbenches, and identify GPU availability.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import pytest
-from deepeval import evaluate
 
 from evals.agent import MCPAgent
 from evals.config import EvalConfig
 from evals.deepeval_helpers import build_mcp_server, result_to_conversational_test_case
 from evals.mcp_harness import MCPHarness
 from evals.metrics.config import create_multi_turn_mcp_use_metric, create_task_completion_metric
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from evals.agent import AgentResult
 
 
 @pytest.mark.eval
@@ -31,6 +37,7 @@ class TestClusterExploration:
         eval_config: EvalConfig,
         harness: MCPHarness,
         agent: MCPAgent,
+        evaluate_and_record: Callable[[str, AgentResult, list[Any], list[Any]], Any],
     ) -> None:
         """Agent should use cluster/project exploration tools."""
         result = await agent.run(self.TASK)
@@ -48,11 +55,11 @@ class TestClusterExploration:
             create_task_completion_metric(eval_config),
         ]
 
-        eval_result = evaluate(
+        eval_result = evaluate_and_record(
+            scenario="cluster_exploration",
+            agent_result=result,
             test_cases=[test_case],
             metrics=metrics,
-            run_async=True,
-            print_results=True,
         )
 
         # Assert all metrics passed

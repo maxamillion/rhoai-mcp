@@ -6,14 +6,20 @@ are available for a given workflow.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import pytest
-from deepeval import evaluate
 
 from evals.agent import MCPAgent
 from evals.config import EvalConfig
 from evals.deepeval_helpers import build_mcp_server, result_to_single_turn_test_case
 from evals.mcp_harness import MCPHarness
 from evals.metrics.config import create_mcp_use_metric
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from evals.agent import AgentResult
 
 
 @pytest.mark.eval
@@ -31,6 +37,7 @@ class TestToolDiscovery:
         eval_config: EvalConfig,
         harness: MCPHarness,
         agent: MCPAgent,
+        evaluate_and_record: Callable[[str, AgentResult, list[Any], list[Any]], Any],
     ) -> None:
         """Agent should use meta/discovery tools to suggest a workflow."""
         result = await agent.run(self.TASK)
@@ -43,11 +50,11 @@ class TestToolDiscovery:
 
         metrics = [create_mcp_use_metric(eval_config)]
 
-        eval_result = evaluate(
+        eval_result = evaluate_and_record(
+            scenario="tool_discovery",
+            agent_result=result,
             test_cases=[test_case],
             metrics=metrics,
-            run_async=True,
-            print_results=True,
         )
 
         for metric_result in eval_result.test_results[0].metrics_data:
