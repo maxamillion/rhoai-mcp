@@ -84,33 +84,23 @@ class RHOAIServer:
         return self._plugin_manager.healthy_plugins
 
     def _create_lifespan(self) -> Callable[[Any], AbstractAsyncContextManager[None]]:
-        """Create the lifespan context manager for the MCP server."""
-        server_self = self
+        """Create the lifespan context manager for MCP sessions.
+
+        Note: K8s connection is established eagerly in create_mcp(), not here.
+        FastMCP's lifespan runs per MCP client session (inside Server.run()),
+        not at ASGI app startup. Putting K8s connect here would block the
+        /health endpoint until the first MCP client connects.
+        """
 
         @asynccontextmanager
         async def lifespan(_app: Any) -> AsyncIterator[None]:
-            """Manage server lifecycle - connect K8s on startup, disconnect on shutdown."""
-            logger.info("Starting RHOAI MCP server...")
-
-            # Connect to Kubernetes
-            server_self._k8s_client = K8sClient(server_self._config)
+            """Per-session lifespan - K8s is already connected."""
+            logger.debug("MCP session started")
             try:
-                server_self._k8s_client.connect()
-
-                # Run health checks on all plugins
-                if server_self._plugin_manager:
-                    server_self._plugin_manager.run_health_checks(server_self)
-
-                pm = server_self._plugin_manager
-                total = len(pm.registered_plugins) if pm else 0
-                healthy = len(pm.healthy_plugins) if pm else 0
-
-                logger.info(f"RHOAI MCP server started with {healthy}/{total} plugins active")
                 yield
             finally:
-                logger.info("Shutting down RHOAI MCP server...")
-
-                # Close any port-forward connections
+                logger.debug("MCP session ended")
+                # Close any port-forward connections opened during this session
                 try:
                     from rhoai_mcp.utils.port_forward import PortForwardManager
 
@@ -118,12 +108,32 @@ class RHOAIServer:
                 except Exception as e:
                     logger.warning(f"Error closing port-forward connections: {e}")
 
-                if server_self._k8s_client:
-                    server_self._k8s_client.disconnect()
-                server_self._k8s_client = None
-                logger.info("RHOAI MCP server shut down")
-
         return lifespan
+
+    def startup(self) -> None:
+        """Connect to Kubernetes and run plugin health checks.
+
+        Called eagerly during create_mcp() so the /health endpoint works
+        immediately, before any MCP client connects.
+        """
+        self._k8s_client = K8sClient(self._config)
+        self._k8s_client.connect()
+
+        if self._plugin_manager:
+            self._plugin_manager.run_health_checks(self)
+
+        pm = self._plugin_manager
+        total = len(pm.registered_plugins) if pm else 0
+        healthy = len(pm.healthy_plugins) if pm else 0
+        logger.info(f"RHOAI MCP server ready with {healthy}/{total} plugins active")
+
+    def shutdown(self) -> None:
+        """Disconnect from Kubernetes and clean up resources."""
+        logger.info("Shutting down RHOAI MCP server...")
+        if self._k8s_client:
+            self._k8s_client.disconnect()
+            self._k8s_client = None
+        logger.info("RHOAI MCP server shut down")
 
     def create_mcp(self) -> FastMCP:
         """Create and configure the FastMCP server."""
@@ -137,6 +147,9 @@ class RHOAIServer:
         # Discover and load external plugins
         external_count = self._plugin_manager.load_entrypoint_plugins()
         logger.info(f"Discovered {external_count} external plugins")
+
+        # Connect to Kubernetes eagerly so /health works before any MCP session
+        self.startup()
 
         # Create MCP server with lifespan
         mcp = FastMCP(

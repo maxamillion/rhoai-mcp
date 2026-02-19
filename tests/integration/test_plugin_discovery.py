@@ -85,10 +85,13 @@ def test_plugins_can_register_resources():
 
 def test_server_creates_plugin_manager():
     """Verify RHOAIServer creates and uses PluginManager."""
+    from unittest.mock import patch
+
     from rhoai_mcp.server import RHOAIServer
 
     server = RHOAIServer()
-    mcp = server.create_mcp()  # noqa: F841
+    with patch.object(server, "startup"):
+        mcp = server.create_mcp()  # noqa: F841
 
     assert server._plugin_manager is not None
     assert len(server.plugins) == 12  # 9 domain + 3 composite

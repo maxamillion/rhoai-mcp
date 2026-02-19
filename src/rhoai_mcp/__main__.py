@@ -175,13 +175,11 @@ def main() -> int:
         return 1
 
     # Create and run server
-    from rhoai_mcp.server import create_server
-
-    mcp = create_server(config)
-
     # Run with appropriate transport
     # Note: Host/port are set via RHOAI_MCP_HOST/PORT env vars which FastMCP reads
     import os
+
+    from rhoai_mcp.server import create_server, get_server
 
     os.environ.setdefault("UVICORN_HOST", config.host)
     os.environ.setdefault("UVICORN_PORT", str(config.port))
@@ -193,6 +191,7 @@ def main() -> int:
         logger.info(f"Running with {transport_name} transport")
 
     try:
+        mcp = create_server(config)
         mcp.run(transport=transport_name)  # type: ignore[arg-type]
     except BaseException as exc:  # BaseException to catch anyio's BaseExceptionGroup
         if _has_auth_error(exc):
@@ -202,6 +201,10 @@ def main() -> int:
             )
             return 1
         raise
+    finally:
+        server = get_server()
+        if server:
+            server.shutdown()
 
     return 0
 
