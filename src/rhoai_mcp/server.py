@@ -117,7 +117,8 @@ class RHOAIServer:
         immediately, before any MCP client connects.
 
         Idempotent: if a K8s client is already connected (e.g. a mock
-        injected for testing), it is preserved. Health checks always run.
+        injected for testing), it is preserved. Health checks run if a plugin
+        manager has been initialised.
         """
         if self._k8s_client is None or not self._k8s_client.is_connected:
             self._k8s_client = K8sClient(self._config)

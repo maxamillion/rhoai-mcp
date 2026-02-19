@@ -45,7 +45,7 @@ def test_startup_replaces_disconnected_client() -> None:
     new_client.is_connected = True
     with patch("rhoai_mcp.server.K8sClient", return_value=new_client) as k8s_cls:
         server.startup()
-        k8s_cls.assert_called_once()
+        k8s_cls.assert_called_once_with(server._config)
         new_client.connect.assert_called_once()
 
     assert server._k8s_client is new_client

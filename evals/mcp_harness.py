@@ -59,18 +59,17 @@ class MCPHarness:
             mock_client.connect()
             server._k8s_client = mock_client
 
-            server.create_mcp()
-
-            harness = MCPHarness(server, eval_config)
             try:
+                server.create_mcp()
+                harness = MCPHarness(server, eval_config)
                 yield harness
             finally:
                 mock_client.disconnect()
                 server._k8s_client = None
         else:
             # Live mode: create_mcp() connects to real K8s via startup()
-            server.create_mcp()
             try:
+                server.create_mcp()
                 yield MCPHarness(server, eval_config)
             finally:
                 server.shutdown()
