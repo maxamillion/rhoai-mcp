@@ -6,7 +6,7 @@ on:
       agent_provider:
         description: "Agent LLM provider"
         required: false
-        default: "google-vertex"
+        default: "google-genai"
         type: choice
         options:
           - google-vertex
@@ -24,7 +24,7 @@ on:
       judge_provider:
         description: "Judge LLM provider"
         required: false
-        default: "google-vertex"
+        default: "google-genai"
         type: choice
         options:
           - google-vertex
@@ -76,7 +76,7 @@ jobs:
 
     env:
       RHOAI_EVAL_LLM_PROVIDER: >-
-        ${{ inputs.agent_provider || 'google-vertex' }}
+        ${{ inputs.agent_provider || 'google-genai' }}
       RHOAI_EVAL_LLM_MODEL: >-
         ${{ inputs.agent_model || 'gemini-2.5-flash' }}
       RHOAI_EVAL_LLM_API_KEY: >-
@@ -86,7 +86,7 @@ jobs:
               && secrets.OPENAI_API_KEY
             || secrets.GOOGLE_API_KEY }}
       RHOAI_EVAL_EVAL_PROVIDER: >-
-        ${{ inputs.judge_provider || 'google-vertex' }}
+        ${{ inputs.judge_provider || 'google-genai' }}
       RHOAI_EVAL_EVAL_MODEL: >-
         ${{ inputs.judge_model || 'gemini-2.5-flash' }}
       RHOAI_EVAL_EVAL_API_KEY: >-
